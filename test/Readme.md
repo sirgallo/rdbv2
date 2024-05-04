@@ -5,7 +5,7 @@
 
 For each module, a mock implementation is generated. Mocks were generated using:
 ```bash
-mockgen -source=./internal/campaign/campaign_proto/campaign.pb.proto -destination=./test/mock/campaign/Mock_Proto.go -package=mock
-mockgen -source=api/replication.proto -destination=test/mock/replication/Mock_Proto.go -package=mock
-mockgen -source=api/snapshot.proto -destination=test/mock/snapshot/Mock_Proto.go -package=mock
+mockgen -source=./internal/campaign/campaign_proto/campaign.pb.go -destination=./test/mock/campaign/mock.go -package=mock
+mockgen -source=./internal/replication/replication_proto/replication.pb.go -destination=test/mock/replication/mock.go -package=mock
+mockgen -source=./internal/snapshot/snapshot_proto/snapshot.pb.go -destination=test/mock/snapshot/mock.go -package=mock
 ```
