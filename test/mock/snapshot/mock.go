@@ -3,3 +3,19 @@
 
 // Package mock is a generated GoMock package.
 package mock
+
+import (
+	"github.com/sirgallo/rdbv2/internal/snapshot/snapshot_proto"
+)
+
+// create mock implementation for gRPC client interface
+type MockSnapshotServiceClient struct {
+	// implement mock behavior here
+}
+
+func (m *MockSnapshotServiceClient) StreamSnapshotRPC(stream snapshot_proto.SnapshotServiceClient) error {
+	// eimulate behavior of StreamSnapshotRPC
+
+	// for example, always return success
+	return nil
+}

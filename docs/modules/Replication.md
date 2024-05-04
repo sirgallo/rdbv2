@@ -31,10 +31,21 @@ message AppendEntry {
 
 The `LogEntry` message consists of:
 ```proto
+message CommandPayload {
+  bytes Collection = 2;
+  bytes Value = 3;
+}
+
+message Command {
+  bytes RequestId = 1;
+  bytes Action = 2;
+  CommandPayload Payload = 3;
+}
+
 message LogEntry {
   int64 Index = 1;
   int64 Term = 2;
-  string Command = 3;
+  Command Command = 3;
 }
 ```
 
@@ -88,6 +99,26 @@ Follower node in the cluster -->
 
     return true with the current term and latest log index after appending the new logs
 ```
+
+## Optimizations
+
+In a system where replication is occuring, overhead is incurred due to network latency and processing of replicated logs by follower nodes, which increases overall latency for client responses on write operations. To mitigate this, the following has been implemented:
+
+### Replication as a Pipeline
+
+If the raft implementation treats replication as a pipeline, it needs to minimize processing on the leader. Replication should occur in as few steps as possible and should only mutate data is truly needed. To achieve this, logs are minimimally encoded/decoded on the leader and followers and any additional post processing is avoided, with incoming entries expected to already be in a semi-formatted structure that raft expects.
+
+### Reduce Memory Allocation
+
+Performance can take a hit with unnecessary memory allocations, as this adds overhead due to go garbage collector having to free more variables. To avoid this, incoming data should flow through the pipeline and should not be reassigned if needed. The same goes for errors and other variables.
+
+### Separate Handling of Writes and Reads
+
+If the raft implementation treats only writes as log entries, since these are the only operations mutating the state machine, this will significantly reduce the overhead introduced from file io operations performed by the write ahead log. By minimizing writes, this will reduce overall response time for writes and will significantly reduce the response time for reads since reads will not invoke any additional file operations.
+
+**With the above optimizations, latency was reduced by a factor of 5 from the v1 implementation of rdb, and throughput was increased by 11%**
+
+While throughput increased modestly with these changes, the latency had a massive improvement, which will actually have a much more important impact on user experience since individiual requests will be returned to client much quicker, improving overall user experience.
 
 
 ## Sources

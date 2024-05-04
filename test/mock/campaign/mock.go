@@ -3,3 +3,24 @@
 
 // Package mock is a generated GoMock package.
 package mock
+
+import (
+	"github.com/sirgallo/rdbv2/internal/campaign/campaign_proto"
+)
+
+
+type MockCampaignServiceClient struct {
+	// Add any fields needed for mocking behavior
+}
+
+func (m *MockCampaignServiceClient) RequestVoteRPC(req *campaign_proto.RequestVote) (*campaign_proto.RequestVoteResponse, error) {
+	// simulate behavior of RequestVoteRPC
+
+	// always grant the vote
+	response := &campaign_proto.RequestVoteResponse{
+		Term:       1,
+		VoteGranted: true,
+	}
+
+	return response, nil
+}
