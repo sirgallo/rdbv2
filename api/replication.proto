@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package log_proto;
+option go_package = "./internal/replication/replication_proto";
+
+
+service ReplicationService {
+  rpc AppendEntryRPC(AppendEntry) returns (AppendEntryResponse) {}
+}
+
+message LogEntry {
+  int64 Index = 1;
+  int64 Term = 2;
+  string Command = 3;
+}
+
+message AppendEntry {
+  int64 Term = 1;
+  string LeaderId = 2;
+  int64 PrevLogIndex = 3;
+  int64 PrevLogTerm = 4;
+  repeated LogEntry Entries = 5;
+  int64 LeaderCommitIndex = 6;
+}
+
+message AppendEntryResponse {
+  int64 Term = 1;
+  int64 NextLogIndex = 2;
+  bool Success = 3;
+}

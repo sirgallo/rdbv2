@@ -1,0 +1,82 @@
+version: "3"
+
+x-variables:
+  common_rdb_settings: &common_rdb_settings
+    build:
+      context: ../../
+      dockerfile: ./cmd/rdb/Dockerfile
+    networks:
+      cluster_network:
+    ports:
+      - 8080
+      - 54321
+      - 54322
+      - 54323
+
+services:
+  rdbproxy: 
+    image: rdb_proxy_img
+    hostname: ${HOSTNAME}
+    build:
+      context: ../../
+      dockerfile: ./lb/Dockerfile.rdb.lb
+    volumes:
+      - $HOME/rdb/certs/haproxy:/certs
+    ports: 
+      - '127.0.0.1:443:443'
+    networks:
+      cluster_network:
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: '512M'
+    depends_on:
+      - rdb_replica_0
+      - rdb_replica_1
+      - rdb_replica_2
+      - rdb_replica_3
+      - rdb_replica_4
+  rdb_replica_0:
+    <<: *common_rdb_settings
+    image: rdb_replica_0_img
+    container_name: rdb_replica_0
+    hostname: rdb_replica_0
+    volumes:
+      - $HOME/rdb_replica_0/replication:/home/rdb/replication
+      - $HOME/rdb_replica_0/state:/home/rdb/state
+  rdb_replica_1:
+    <<: *common_rdb_settings
+    image: rdb_replica_1_img
+    container_name: rdb_replica_1
+    hostname: rdb_replica_1
+    volumes:
+      - $HOME/rdb_replica_1/replication:/home/rdb/replication
+      - $HOME/rdb_replica_1/state:/home/rdb/state
+  rdb_replica_2:
+    <<: *common_rdb_settings
+    image: rdb_replica_2_img
+    container_name: rdb_replica_2
+    hostname: rdb_replica_2
+    volumes:
+      - $HOME/rdb_replica_2/replication:/home/rdb/replication
+      - $HOME/rdb_replica_2/state:/home/rdb/state
+  rdb_replica_3:
+    <<: *common_rdb_settings
+    image: rdb_replica_3_img
+    container_name: rdb_replica_3
+    hostname: rdb_replica_3
+    volumes:
+      - $HOME/rdb_replica_3/replication:/home/rdb/replication
+      - $HOME/rdb_replica_3/state:/home/rdb/state
+  rdb_replica_4:
+    <<: *common_rdb_settings
+    image: rdb_replica_4_img
+    container_name: rdb_replica_4
+    hostname: rdb_replica_4
+    volumes:
+      - $HOME/rdb_replica_4/replication:/home/rdb/replication
+      - $HOME/rdb_replica_4/state:/home/rdb/state
+networks:
+  cluster_network:
+    driver: bridge

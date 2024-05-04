@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package snapshot_proto;
+option go_package = "./internal/snapshot/snapshot_proto";
+
+
+service SnapshotService {
+  rpc StreamSnapshotRPC(stream SnapshotChunk) returns (SnapshotStreamResponse);
+}
+
+message SnapshotChunk {
+  int64 LastIncludedIndex = 1;
+  int64 LastIncludedTerm = 2;
+  string SnapshotFilePath = 3;
+  bytes SnapshotChunk = 4;
+}
+
+message SnapshotEntry {
+  int64 LastIncludedIndex = 1;
+  int64 LastIncludedTerm = 2;
+  string SnapshotFilePath = 3;
+}
+
+message SnapshotStreamResponse {
+  bool Success = 1;
+}
