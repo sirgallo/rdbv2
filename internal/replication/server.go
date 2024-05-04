@@ -8,43 +8,30 @@ import (
 )
 
 
-//=========================================== RepLog Server
+//=========================================== Replication Server
 
 
-/*
-	AppendEntryRPC:
-		grpc server implementation
-
-		when an AppendEntryRPC is made to the appendEntry server
-			1.) if the host of the incoming request is not in the systems map, store it
-			2.) reset the election timeout regardless of success or failure response
-			3.) if the request has a term lower than the current term of the system
-				--> return a failure response with the term of the system
-			4.) if the term of the replicated log on the system is not the term of the request or is not present
-				--> return a failure response, with the earliest known index for the term, or from the latest term known on the 
-					follower to update NextIndex
-			5.) acknowledge that the request is legitimate and send signal to reset the leader election timeout
-			6.) for all of the entries of the incoming request
-				--> if the term of the replicated log associated with the index of the incoming entry is not the same
-					as the request, remove up to the entry in the log on the system and begin appending logs
-				--> otherwise, just prepare the batch of logs to be range appended to the WAL
-			7.) if the commit index of the incoming request is higher than on the system, commit logs up to the commit index from
-					last applied for the state machine on the system
-			8.) if logs are at least up to date with the leader's commit index:
-				--> return a success response with the index of the latest log applied to the replicated log
-					else:
-				--> return a failed response so the follower can sync itself up to the leader if inconsistent log length
-
-		The AppendEntryRPC server can process requests asynchronously, but when appending to the replicated log, the request must pass
-		the log entries into a buffer where they will be appended/processed synchronously in a separate go routine. For requests like heartbeats,
-		this ensures that the context timeout period should not be reached unless extremely high system load, and should improve overall 
-		throughput of requests sent to followers. So even though requests are processed asynchronously, logs are still processed synchronously.
-
-		For applying logs to the statemachine, a separate go routine is also utilized. A signal is attempted with the current request leader
-		commit index, and is dropped if the go routine is already in the process of applying logs to the state machine. I guess this could be 
-		considered an "opportunistic" approach to state machine application. The above algorithm for application does not change.
-*/
-
+// 	AppendEntryRPC:
+//		grpc server implementation
+//
+//		when an AppendEntryRPC is made to the appendEntry server
+//			1.) if the host of the incoming request is not in the systems map, store it
+//			2.) reset the election timeout regardless of success or failure response
+//			3.) if the request has a term lower than the current term of the system return a failure response with the term of the system
+//			4.) if the term of the replicated log on the system is not the term of the request or is not present return a failure response, with the earliest known index for the term, or from the latest term known on the follower to update NextIndex
+//			5.) acknowledge that the request is legitimate and send signal to reset the leader election timeout
+//			6.) for all of the entries of the incoming request//
+//				--> if the term of the replicated log associated with the index of the incoming entry is not the same as the request, remove up to the entry in the log on the system and begin appending logs
+//				--> otherwise, just prepare the batch of logs to be range appended to the WAL
+//			7.) if the commit index of the incoming request is higher than on the system, commit logs up to the commit index from last applied for the state machine on the system
+//			8.) if logs are at least up to date with the leader's commit index return a success response with the index of the latest log applied to the replicated log
+//				else return a failed response so the follower can sync itself up to the leader if inconsistent log length
+//
+//			the AppendEntryRPC server can process requests asynchronously, but when appending to the replicated log, the request must pass the log entries into a buffer where they will be appended/processed synchronously in a separate go routine. 
+//			for requests like heartbeats, this ensures that the context timeout period should not be reached unless extremely high system load, and should improve overall throughput of requests sent to followers. 
+//			so even though requests are processed asynchronously, logs are still processed synchronously.
+//			for applying logs to the statemachine, a separate go routine is also utilized. A signal is attempted with the current request leader commit index, and is dropped if the go routine is already in the process of applying logs to the state machine. 
+//			this could be considered an "opportunistic" approach to state machine application. The above algorithm for application does not change.
 func (rService *ReplicationService) AppendEntryRPC(
 		ctx context.Context,
 		req *replication_proto.AppendEntry,
@@ -143,16 +130,12 @@ func (rService *ReplicationService) AppendEntryRPC(
 
 	nextLogIndex := lastLogIndex + 1
 	successfulResp := rService.generateResponse(nextLogIndex, true)
-	// rService.Log.Info(req.LeaderId, ACKNOWLEDGED_LEADER, successfulResp)
 	return successfulResp, nil
 }
 
-/*
-	Handle Replicate Logs:
-		For incoming requests, if request contains log entries, pipe into buffer to be processed
-		otherwise, attempt signalling to log application channel to update state machine
-*/
-
+//	HandleReplicateLogs:
+//		for incoming requests, if request contains log entries, pipe into buffer to be processed.
+//  	otherwise, attempt signalling to log application channel to update state machine.
 func (rService *ReplicationService) HandleReplicateLogs(req *replication_proto.AppendEntry) (bool, error) {
 	var logsToAppend []*replication_proto.LogEntry
 
@@ -194,79 +177,9 @@ func (rService *ReplicationService) HandleReplicateLogs(req *replication_proto.A
 	return true, nil
 }
 
-/*
-	Process Logs Follower:
-		helper method used for replicating the logs to the follower's replicated log
-
-		instead of appending one at a time, we can batch all of the log entries into a single bolt db transaction to reduce 
-		overhead and total transactions performed on the db, which should improve performance
-
-		this is run in a separate go routine so that requests can be processed asynchronously, but logs can be processed synchronously
-		as they enter the buffer
-*/
-
-/*
-func (rlService *ReplicatedLogService) ProcessLogsFollower(req *replogrpc.AppendEntry) (bool, error) {
-	logTransform := func(entry *replogrpc.LogEntry) *log.LogEntry {
-		cmd, decErr := utils.DecodeStringToStruct[statemachine.StateMachineOperation](entry.Command)
-		if decErr != nil {
-			rlService.Log.Error("error on decode -->", decErr.Error())
-			return nil
-		}
-
-		return &log.LogEntry{
-			Index: entry.Index,
-			Term: entry.Term,
-			Command: *cmd,
-		}
-	}
-
-	var logsToAppend []*log.LogEntry
-
-	appendLogToReplicatedLog := func(entry *replogrpc.LogEntry) error {
-		newLog := logTransform(entry)
-		if newLog == nil { return errors.New("log transform failed, new log is null") }
-		
-		logsToAppend = append(logsToAppend, newLog)
-
-		return nil
-	}
-
-	for idx, entry := range req.Entries {
-		currEntry, readErr := rlService.CurrentSystem.WAL.Read(entry.Index)
-		if readErr != nil { return false, readErr }
-
-		if currEntry != nil {
-			if currEntry.Term != entry.Term {
-				transformedLogs := utils.Map[*replogrpc.LogEntry, *log.LogEntry](req.Entries[:idx + 1], logTransform)
-				rangeUpdateErr := rlService.CurrentSystem.WAL.RangeAppend(transformedLogs)
-				if rangeUpdateErr != nil { return false, rangeUpdateErr }
-			}
-		} else {
-			appendErr := appendLogToReplicatedLog(entry)
-			if appendErr != nil { return false, appendErr }
-		}
-	}
-
-	rlService.CurrentSystem.WAL.RangeAppend(logsToAppend)
-
-	latestLog, latestErr := rlService.CurrentSystem.WAL.GetLatest()
-	if latestErr != nil { return false, latestErr }
-
-	rlService.CurrentSystem.UpdateCommitIndex(latestLog.Index)
-
-	return true, nil
-}
-*/
-
-/*
-	Apply Logs To State Machine Follower:
-		helper method for applying logs to the state machine up to the leader's last commit index or 
-		last known log on the system if it is less than the commit index of the leader
-
-		again, this is run in a separate go routine, with opportunistic approach
-*/
-
+//	ApplyLogsToStateFollower:
+//		helper method for applying logs to the state machine up to the leader's last commit index or last known log on the system if it is less than the commit index of the leader.
+//		this is run in a separate go routine, with opportunistic approach.
 func (rService *ReplicationService) ApplyLogsToStateFollower(leaderCommitIndex int64) error {
 	var applyLogsErr error
 
@@ -293,9 +206,6 @@ func (rService *ReplicationService) ApplyLogsToStateFollower(leaderCommitIndex i
 	return nil
 }
 
-func (rService *ReplicationService) generateResponse(
-	lastLogIndex int64,
-	success bool,
-) *replication_proto.AppendEntryResponse {
+func (rService *ReplicationService) generateResponse(lastLogIndex int64, success bool) *replication_proto.AppendEntryResponse {
 	return &replication_proto.AppendEntryResponse{ Term: rService.CurrentSystem.CurrentTerm, NextLogIndex: lastLogIndex, Success: success }
 }

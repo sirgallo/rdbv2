@@ -17,23 +17,17 @@ import (
 
 //=========================================== Snapshot Client
 
-/*
-	Snapshot the current state of of the state machine and the replicated log
-		1.) get the latest known log entry, to set on the snapshotrpc for last included index and term
-			of logs in the snapshot
-		2.) snapshot the current state machine
-			--> since the db is a boltdb instance, we'll take a backup of the data and gzipped, returning
-			the filepath where the snapshot is stored on the system as a reference
-		3.) set the snapshot entry in the replicated log db in an index
-			--> the entry contains last included index, last included term, and the filepath on the system
-				to the latest snapshot --> snapshots are stored durably and snapshot entry can be seen as a pointer
-		4.) broadcast the new snapshot to all other systems. so send the entry with the filepath and file compressed
-				to byte representation
-		5.) if the broadcast was successful, delete all logs in the replicated log up to the last included log
-			--> so we compact the log only when we know the broadcast received the minimum number of successful
-				responses in the quorum
-*/
-
+//	Snapshot
+//		snapshot the current state of of the state machine and the replicated log:
+//			1.) get the latest known log entry, to set on the snapshotrpc for last included index and term of logs in the snapshot
+//			2.) snapshot the current state machine
+//				--> since the db is a boltdb instance, we'll take a backup of the data and gzipped, returning the filepath where the snapshot is stored on the system as a reference
+//			3.) set the snapshot entry in the replicated log db in an index
+//				--> the entry contains last included index, last included term, and the filepath on the system to the latest snapshot
+//				--> snapshots are stored durably and snapshot entry can be seen as a pointer
+//			4.) broadcast the new snapshot to all other systems. so send the entry with the filepath and file compressed to byte representation
+//			5.) if the broadcast was successful, delete all logs in the replicated log up to the last included log
+//				--> so compact the log only when the broadcast received the minimum number of successful responses in the quorum
 func (snpService *SnapshotService) Snapshot() error {
 	var snapshotErr error
 
@@ -77,16 +71,12 @@ func (snpService *SnapshotService) Snapshot() error {
 	return nil
 }
 
-/*
-	Update Individual System
-		when a node restarts and rejoins the cluster or a new node is added
-			1.) set the node to send to busy so interactions with other followers continue
-			2.) create a snapshotrpc for the node that contains the last snapshot
-			2.) send the rpc to the node
-			3. if successful, update the next index for the node to the last included index
-				and set the system status to ready
-*/
-
+//	UpdateIndividualSystem
+//		when a node restarts and rejoins the cluster or a new node is added:
+//			1.) set the node to send to busy so interactions with other followers continue
+//			2.) create a snapshotrpc for the node that contains the last snapshot
+//			3.) send the rpc to the node
+//			4.) if successful, update the next index for the node to the last included index and set the system status to ready
 func (snpService *SnapshotService) UpdateIndividualSystem(host string) error {
 	var updateErr error
 
@@ -120,19 +110,16 @@ func (snpService *SnapshotService) UpdateIndividualSystem(host string) error {
 	return nil
 }
 
-/*
-	Shared Broadcast RPC function:
-		for requests to be broadcasted:
-			1.) send SnapshotRPCs in parallel to each follower in the cluster
-			2.) in each go routine handling each request, perform exponential backoff on failed requests until max retries
-			3.)
-				if err: remove system from system map and close all connections -- it has failed
-				if res:
-					if success:
-						--> update total successful replies
-			4.) if total successful responses are greater than minimum, return success, otherwise failed
-*/
-
+//	BroadcastSnapshotRPC:
+//		shared Broadcast RPC function:
+//			for requests to be broadcasted:
+//				1.) send SnapshotRPCs in parallel to each follower in the cluster
+//				2.) in each go routine handling each request, perform exponential backoff on failed requests until max retries
+//				3.)
+//					if err: remove system from system map and close all connections -- it has failed
+//					if res:
+//						if success update total successful replies
+//				4.) if total successful responses are greater than minimum, return success, otherwise failed
 func (snpService *SnapshotService) BroadcastSnapshotRPC(snapshot *snapshot_proto.SnapshotChunk) (bool, error) {
 	var snapshotWG sync.WaitGroup
 
@@ -164,17 +151,13 @@ func (snpService *SnapshotService) BroadcastSnapshotRPC(snapshot *snapshot_proto
 	}
 }
 
-/*
-	Client Snapshot RPC:
-		helper method for making individual rpc calls
-
-		a grpc stream is used here
-			--> open the file and read the snapshot file in chunks, passing the chunks into the snapshot stream channel
-			--> as new chunks enter the channel, send them to the target follower
-			--> close the snapshot stream when the file has been read, finish passing the rest of the chunks, 
-				and return the response from closing the stream
-*/
-
+//	ClientSnapshotRPC:
+//		helper method for making individual rpc calls
+//
+//		a grpc stream is used here:
+//			1.) open the file and read the snapshot file in chunks, passing the chunks into the snapshot stream channel
+//			2.) as new chunks enter the channel, send them to the target follower
+//			3.) close the snapshot stream when the file has been read, finish passing the rest of the chunks and return the response from closing the stream
 func (snpService *SnapshotService) ClientSnapshotRPC(sys *system.System, initSnapshotShotReq *snapshot_proto.SnapshotChunk) (*snapshot_proto.SnapshotStreamResponse, error) {
 	var clientSnapshotErr error
 
@@ -224,11 +207,8 @@ func (snpService *SnapshotService) ClientSnapshotRPC(sys *system.System, initSna
 	return res, nil
 }
 
-/*
-	Read Snapshot Content Stream
-		when sending the snapshot, read the current snapshot file in chunks to create a read stream
-*/
-
+//	ReadSnapshotContentStream:
+//		when sending the snapshot, read the current snapshot file in chunks to create a read stream.
 func (snpService *SnapshotService) ReadSnapshotContentStream(snapshotFilePath string, snapshotStreamChannel chan []byte) error {
 	var snapshotFile *os.File
 	var readErr error

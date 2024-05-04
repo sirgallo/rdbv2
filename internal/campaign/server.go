@@ -12,22 +12,16 @@ import (
 //=========================================== Leader Election Server
 
 
-/*
-	RequestVoteRPC:
-		grpc server implementation
-
-		when a RequestVoteRPC is made to the requestVote server
-			1.) load the host from the request into the systems map
-			2.) if the incoming request has a higher term than the current system, update the current term and set the system 
-				to Follower State
-			3.) if the system hasn't voted this term or has already voted for the incoming candidate 
-				and the last log index and term	of the request are at least as up to date as what is on the current system
-				--> grant the vote to the candidate, reset VotedFor, update the current term to the term of the request, and
-					revert back to Follower state
-			4.) if the request has a higher term than currently on the system, 
-			5.) otherwise, do not grant the vote
-*/
-
+//	RequestVoteRPC:
+//		grpc server implementation
+//
+//		when a RequestVoteRPC is made to the requestVote server:
+//			1.) load the host from the request into the systems map
+//			2.) if the incoming request has a higher term than the current system, update the current term and set the system to follower State
+//			3.) if the system hasn't voted this term or has already voted for the incoming candidate and the last log index and term	of the request are at least as up to date as what is on the current system:
+//				grant the vote to the candidate, reset VotedFor, update the current term to the term of the request, and revert back to follower state
+//			4.) if the request has a higher term than currently on the system, grant vote
+//			5.) otherwise, do not grant the vote
 func (cService *CampaignService) RequestVoteRPC(ctx context.Context, req *campaign_proto.RequestVote) (*campaign_proto.RequestVoteResponse, error) {
 	var requestVoteRPCErr error
 

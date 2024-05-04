@@ -9,39 +9,28 @@ import (
 )
 
 
-//=========================================== Connection Pool
+//=========================================== Pool
 
 
-/*
-	initialize the connection pool
-
-	the purpose of the connection pool is to reuse connections once they have been made, minimizing overhead
-	for reconnecting to a host every time an rpc is made
-
-	the pool has the following structure:
-		{
-			[key: address/host]: Array<connections>
-		}
-*/
-
+//	NewPool:
+//		initialize the connection pool.
+//		the purpose of the connection pool is to reuse connections once they have been made, minimizing overhead for reconnecting to a host every time an rpc is made.
+//		the pool has the following structure:
+//			{
+//				[key: address/host]: Array<connections>
+//			}
 func NewPool(opts PoolOpts) *Pool {
 	return &Pool{ maxConn: opts.MaxConn }
 }
 
-/*
-	Get Connection:
-		1.) load connections for the particular host/address
-		2.) if the address was loaded from the thread safe map:
-			if the total connections in the map is greater than max connections specified:
-				--> throw max connections error
-			otherwise for each connection in the array of connections, if the connection is not null and
-			the connection is ready for work, return the connection
-		3.) if the address was not loaded, create a new grpc connection and store the new connection at
-		the key associated with the address/host and return the new connection
-		
-		for grpc connection opts, we will automatically compress the rpc on the wire
-*/
-
+//	GetConnection:
+//		1.) load connections for the particular host/address
+//		2.) if the address was loaded from the thread safe map:
+//			if the total connections in the map is greater than max connections specified throw max connections error
+//			otherwise for each connection in the array of connections, if the connection is not null and the connection is ready for work, return the connection
+//		3.) if the address was not loaded, create a new grpc connection and store the new connection at the key associated with the address/host and return the new connection
+//	
+//		for grpc connection opts, we will automatically compress the rpc on the wire
 func (cp *Pool) GetConnection(addr string, port string) (*grpc.ClientConn, error) {
 	connections, loaded := cp.connections.Load(addr)
 	if loaded {
@@ -71,14 +60,10 @@ func (cp *Pool) GetConnection(addr string, port string) (*grpc.ClientConn, error
 	return newConn, nil
 }
 
-/*
-	Put Connection:
-		1.) load connections for the particular host/address
-		2.) if the address was loaded from the thread safe map:
-			if the connection already exists in the map, return 
-			otherwise, close the connection and return
-*/
-
+//	PutConnection:
+//		1.) load connections for the particular host/address
+//		2.) if the address was loaded from the thread safe map:
+//			if the connection already exists in the map, return otherwise, close the connection and return
 func (cp *Pool) PutConnection(addr string, connection *grpc.ClientConn) (bool, error) {
 	connections, loaded := cp.connections.Load(addr)
 	if loaded {
@@ -92,14 +77,11 @@ func (cp *Pool) PutConnection(addr string, connection *grpc.ClientConn) (bool, e
 	return false, nil
 }
 
-/*
-	Close Connections For Address:
-		1.) load connections for the particular host/address
-		2.) if the address was loaded from the thread safe map:
-			if the connection already exists in the map, close the connection
-		3.) remove the key from the map
-*/
-
+//	CloseConnections:
+//		1.) load connections for the particular host/address
+//		2.) if the address was loaded from the thread safe map:
+//			if the connection already exists in the map, close the connection
+//		3.) remove the key from the map
 func (cp *Pool) CloseConnections(addr string) (bool, error) {
 	connections, loaded := cp.connections.Load(addr)
 	if loaded {

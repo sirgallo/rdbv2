@@ -8,14 +8,13 @@ import (
 	"github.com/sirgallo/rdbv2/internal/snapshot/snapshot_proto"
 )
 
-//=========================================== Write Ahead Log Snapshot Ops
 
-/*
-	Set Snapshot
-		Set the snapshot entry for the latest snapshot
-		--> the entry contains a reference to the file path where the latest snapshot is stored on disk
-*/
+//=========================================== WAL Snapshot Ops
 
+
+//	SetSnapshot:
+//		set the snapshot entry for the latest snapshot.
+//		the entry contains a reference to the file path where the latest snapshot is stored on disk.
 func (wal *WAL) SetSnapshot(snapshot *snapshot_proto.SnapshotEntry) error {
 	var setErr error
 
@@ -38,11 +37,8 @@ func (wal *WAL) SetSnapshot(snapshot *snapshot_proto.SnapshotEntry) error {
 	return nil
 }
 
-/*
-	Get Snapshot
-		Get the latest snapshot entry to get the path to the latest snapshot
-*/
-
+//	GetSnapshot:
+//		get the latest snapshot entry to get the path to the latest snapshot.
 func (wal *WAL) GetSnapshot() (*snapshot_proto.SnapshotEntry, error) {
 	var snapshotEntry *snapshot_proto.SnapshotEntry
 	var getErr error

@@ -13,12 +13,9 @@ import (
 //=========================================== Request Service
 
 
-/*
-	create a new service instance with passable options
-	--> initialize the mux server and register route handlers on it, in this case the command route
-		for sending operations to perform on the state machine
-*/
-
+//	NewRequestService:
+//		create a new service instance with passable options.
+//		initialize the mux server and register route handlers on it, in this case the command route for sending operations to perform on the state machine.
 func NewRequestService(opts *RequestServiceOpts) *RequestService {
 	reqService := &RequestService{
 		Mux: http.NewServeMux(),
@@ -34,17 +31,13 @@ func NewRequestService(opts *RequestServiceOpts) *RequestService {
 	return reqService
 }
 
-/*
-	Start Request Service
-		separate go routines:
-			1.) http server
-				--> start the server to begin listening for client requests
-			2.) handle response channel 
-				--> for incoming respones, check the request id against the mapping of client response channels
-					if the channel exists for the response, pass the response back to the route so it can be 
-					returned to the client
-*/
-
+//	StartRequestService:
+//		separate go routines:
+//			1.) http server starts the server to begin listening for client requests
+//			2.) handle response channel:
+//				for incoming respones:
+//					check the request id against the mapping of client response channels
+//					if the channel exists for the response, pass the response back to the route so it can be returned to the client
 func (reqService *RequestService) StartRequestService() {
 	go func() {
 		reqService.Log.Info(SERVICE_LISTENING, "port:", reqService.Port)

@@ -10,19 +10,14 @@ import (
 //=========================================== Apply Logs
 
 
-/*
-	shared apply log utility function
-		1.) transform the logs to pass to the state machine
-		2.) pass the transformed entries into the bulk apply function of the state machine, which will perform 
-			the state machine operations while applying the logs, returning back the responses to the clients' 
-			commands
-		3.) block until completed and failed entries are returned
-		4.) for all responses:
-			if the commit failed: throw an error since the the state machine was incorrectly committed to
-			if the commit completed: update the last applied field on the system to the index of the log
-				entry
-*/
-
+//	ApplyLogs
+//		shared apply log utility function
+//			1.) transform the logs to pass to the state machine
+//			2.) pass the transformed entries into the bulk apply function of the state machine, which will perform the state machine operations while applying the logs, returning back the responses to the clients' commands
+//			3.) block until completed and failed entries are returned
+//			4.) for all responses:
+//						if the commit failed: throw an error since the the state machine was incorrectly committed to
+//						if the commit completed: update the last applied field on the system to the index of the log entry
 func (rService *ReplicationService) ApplyLogs() error {
 	var applyLogsErr error
 

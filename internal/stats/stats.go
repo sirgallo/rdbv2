@@ -10,6 +10,7 @@ import (
 
 var Log = logger.NewCustomLog(NAME)
 
+
 func CalculateCurrentStats() (*Stats, error) {
 	var stat syscall.Statfs_t
 	var calcStatsErr error

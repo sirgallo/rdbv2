@@ -13,15 +13,10 @@ import (
 
 var Log = logger.NewCustomLog(NAME)
 
-
-/*
-	State Machine
-		1.) open the db using the filepath 
-		2.) create the root bucket for the state machine
-		3.) create the collections for both storing all collection names and index names
-			associated with the collection.
-*/
-
+//	NewState:
+//		1.) open the db using the filepath 
+//		2.) create the root bucket for the state machine
+//		3.) create the collections for both storing all collection names and index names associated with the collection.
 func NewState() (*State, error) {
 	homedir, homeErr := os.UserHomeDir()
 	if homeErr != nil { return nil, homeErr }

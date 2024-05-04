@@ -14,15 +14,12 @@ import (
 //=========================================== Snapshot Utils
 
 
-/*
-	Snapshot State Machine
-		1.) generate the name for the snapshot file, which is db name and a uuid 
-		2.) open a new file for the snapshot to be written to
-		3.) open up a gzip stream to compress the file
-		4.) create a bolt transaction to write to the gzip stream
-		5.) if successful, return the snapshot path
-*/
-
+//	SnapshotState:
+//		1.) generate the name for the snapshot file, which is db name and a uuid 
+//		2.) open a new file for the snapshot to be written to
+//		3.) open up a gzip stream to compress the file
+//		4.) create a bolt transaction to write to the gzip stream
+//		5.) if successful, return the snapshot path
 func (sm *State) SnapshotStat() (string, error) {
 	homedir, homeErr := os.UserHomeDir()
 	if homeErr != nil { return utils.GetZero[string](), homeErr }
@@ -47,16 +44,13 @@ func (sm *State) SnapshotStat() (string, error) {
 	return snapshotPath, nil
 }
 
-/*
-	Replay Snapshot
-		1.) using the filepath for the latest snapshot, open the file
-		2.) create a gzip reader
-		3.) close the db and remove the original db file
-		4.) recreate the same file and read the snapshot
-		5.) write the content of the snapshot to the newly created db file
-		6.) reopen the db
-*/
-
+//	ReplaySnapshot:
+//		1.) using the filepath for the latest snapshot, open the file
+//		2.) create a gzip reader
+//		3.) close the db and remove the original db file
+//		4.) recreate the same file and read the snapshot
+//		5.) write the content of the snapshot to the newly created db file
+//		6.) reopen the db
 func (sm *State) ReplaySnapshot(snapshotPath string) error {
 	var replayErr error 
 
@@ -93,11 +87,8 @@ func (sm *State) ReplaySnapshot(snapshotPath string) error {
 	return nil
 }
 
-/*
-	generate Filename
-		--> generate the snapshot name, which is dbname_uniqueID
-*/
-
+//	generateFilename:
+//		generate the snapshot name, which is dbname_uniqueID.
 func (sm *State) generateFilename() (string, error) {
 	hash, hashErr := rdbUtils.GenerateRandomSHA256Hash()
 	if hashErr != nil { return utils.GetZero[string](), hashErr }

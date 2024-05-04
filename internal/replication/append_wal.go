@@ -6,13 +6,11 @@ import (
 )
 
 
-//=========================================== RepLog Append WAL
+//=========================================== Replication Append WAL
 
 
-/*
-	As new requests are received, append the logs in order to the replicated log/WAL
-*/
-
+//	AppendWALSync:
+//		as new requests are received, append the logs in order to the replicated log/WAL.
 func (rService *ReplicationService) AppendWALSync(cmd *state.StateOperation) error {
 	var appendErr error
 

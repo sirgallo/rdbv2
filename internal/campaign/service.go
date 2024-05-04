@@ -11,14 +11,13 @@ import (
 	rdbUtils "github.com/sirgallo/rdbv2/internal/utils"
 )
 
-//=========================================== Leader Election Service
+
+//=========================================== Campaign Service
 
 
-/*
-	create a new service instance with passable options
-	--> initialize state to Follower and initialize a random timeout period for leader election
-*/
-
+//  NewCampaignService:
+//		create a new service instance with passable options.
+//		initialize state to follower and initialize a random timeout period for leader election.
 func NewCampaignService(opts *CampaignOpts) *CampaignService {
 	cService := &CampaignService{
 		Port: rdbUtils.NormalizePort(opts.Port),
@@ -35,12 +34,10 @@ func NewCampaignService(opts *CampaignOpts) *CampaignService {
 	return cService
 }
 
-/*
-	start the replicated log module/service:
-		--> launch the grpc server for AppendEntryRPC
-		--> start the leader election timeout
-*/
-
+// 	StartCampaignService
+//		start the replicated log module/service:
+//			--> launch the grpc server for AppendEntryRPC
+//			--> start the leader election timeout
 func (cService *CampaignService) StartCampaignService(listener *net.Listener) {
 	srv := grpc.NewServer()
 	cService.Log.Info(RPC_SERVER_LISTENING, cService.Port)
@@ -54,13 +51,9 @@ func (cService *CampaignService) StartCampaignService(listener *net.Listener) {
 	cService.StartElectionTimeout()
 }
 
-/*
-	start the election timeouts:
-		1.) if a signal is passed indicating that an AppendEntryRPC has been received from a
-			legitimate leader, reset the election timeout
-		2.) otherwise, on timeout, start the leader election process
-*/
-
+//	StartElectionTimeout:
+//		1.) if a signal is passed indicating that an AppendEntryRPC has been received from a legitimate leader, reset the election timeout
+//		2.) otherwise, on timeout, start the leader election process
 func (cService *CampaignService) StartElectionTimeout() {
 	cService.ElectionTimer = time.NewTimer(cService.Timeout)
 	timeoutChannel := make(chan bool)

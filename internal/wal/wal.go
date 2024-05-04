@@ -10,21 +10,16 @@ import (
 
 var Log = logger.NewCustomLog(NAME)
 
-/*
-	Write Ahead Log
-		1.) open the db using the filepath 
-		2.) create the replog bucket if it does not already exist
-		4.) also create both a stats bucket and an index bucket sub bucket
-			--> the replog stats bucket contains both the total size of the replicated log and total entries
-			--> the index bucket conains the first known entry for each term, which is used to 
-					reduce the number of failed AppendEntryRPCs when a node is brought into the cluster
-					and being synced back to the leader
-		5.) create the snapshot bucket
-			--> this contains a reference to the filepath for the most up to date snapshot for the cluster
-		6.) create the stats bucket
-			--> the stats bucket contains a time series of system stats as the system progresses
-*/
-
+//	NewWAL:
+//		1.) open the db using the filepath 
+//		2.) create the replog bucket if it does not already exist
+//		4.) also create both a stats bucket and an index bucket sub bucket
+//			--> the replog stats bucket contains both the total size of the replicated log and total entries
+//			--> the index bucket conains the first known entry for each term, which is used to reduce the number of failed AppendEntryRPCs when a node is brought into the cluster and being synced back to the leader
+//		5.) create the snapshot bucket
+//			--> this contains a reference to the filepath for the most up to date snapshot for the cluster
+//		6.) create the stats bucket
+//			--> the stats bucket contains a time series of system stats as the system progresses
 func NewWAL () (*WAL, error) {
 	var db *bolt.DB
 	var homedir string

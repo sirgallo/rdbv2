@@ -5,16 +5,11 @@ import "github.com/sirgallo/rdbv2/internal/replication/replication_proto"
 
 //=========================================== System Utils
 
-/*
-	Determine Last Log Idx And Term:
-		get the last index and term from the replicated log
-		1.) if the log length is greater than 0
-			get the log at the end of the replicated log and return its index and term
-		2.) otherwise
-			we can assume this is a new system, so we default the index to -1 and term to 0
-			to indicate this
-*/
 
+//	DetermineLastLogIdxAndTerm:
+//		get the last index and term from the replicated log:
+//			1.) if the log length is greater than 0 get the log at the end of the replicated log and return its index and term
+//			2.) otherwise assume this is a new system, so we default the index to -1 and term to 0 to indicate this
 func (sys *System) DetermineLastLogIdxAndTerm() (int64, int64, error) {
 	var lastLog *replication_proto.LogEntry
 	var lastLogIndex, lastLogTerm int64

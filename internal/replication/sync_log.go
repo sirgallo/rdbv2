@@ -8,22 +8,19 @@ import (
 )
 
 
-//=========================================== Sync Logs
+//=========================================== Replication Sync Logs
 
-/*
-	Sync Logs:
-		helper method for handling syncing followers who have inconsistent logs
 
-		while unsuccessful response:
-			send AppendEntryRPC to follower with logs starting at the follower's NextIndex
-			if error: return false, error
-			on success: return true, nil --> the log is now up to date with the leader
-
-		if the earliest log on the leader is greater then the next index of the system,
-		send a signal to send the latest snapshot to the follower and perform log replication,
-		since this means that follower was not in the cluster during the latest log compaction event
-*/
-
+// Sync Logs:
+//	helper method for handling syncing followers who have inconsistent logs
+//		while unsuccessful response:
+//			send AppendEntryRPC to follower with logs starting at the follower's NextIndex
+//			if error: return false, error
+//			on success: return true, nil --> the log is now up to date with the leader
+//
+//	if the earliest log on the leader is greater then the next index of the system,
+//	send a signal to send the latest snapshot to the follower and perform log replication,
+//	since this means that follower was not in the cluster during the latest log compaction event
 func (rService *ReplicationService) SyncLogs(host string) (bool, error) {
 	var syncErr error
 

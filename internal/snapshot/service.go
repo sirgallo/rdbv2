@@ -15,10 +15,8 @@ import (
 //=========================================== Snapshot Service
 
 
-/*
-	create a new service instance with passable options
-*/
-
+//	NewSnapshotService:
+//		create a new service instance with passable options.
 func NewSnapshotService(opts *SnapshotServiceOpts) *SnapshotService {
 	return &SnapshotService{
 		Port: rdbUtils.NormalizePort(opts.Port),
@@ -31,12 +29,10 @@ func NewSnapshotService(opts *SnapshotServiceOpts) *SnapshotService {
 	}
 }
 
-/*
-	start the snapshot service:
-		--> launch the grpc server for SnapshotRPC
-		--> start the start the snapshot listener
-*/
-
+//	StartSnapshotService:
+//		start the snapshot service:
+//			-->	launch the grpc server for SnapshotRPC
+//			--> start the start the snapshot listener
 func (snpService *SnapshotService) StartSnapshotService(listener *net.Listener) {
 	srv := grpc.NewServer()
 	snpService.Log.Info(RPC_SERVER_LISTENING, snpService.Port)
@@ -50,19 +46,15 @@ func (snpService *SnapshotService) StartSnapshotService(listener *net.Listener) 
 	snpService.StartSnapshotListener()
 }
 
-/*
-	Snapshot Listener:
-		separate go routines:
-			1.) attempt snapshot timer
-				--> wait for timer to drain, signal attempt snapshot, and reset timer
-			1.) snapshot signal
-				--> if current leader, snapshot the state machine and then signal complete 
-			2.) update snapshot for node
-				--> if leader, send the latest snapshot on the system to the target follower
-			3.) attempt trigger snapshot
-				--> on interval, check if we can begin the snapshot process
-*/
-
+//	StartSnapshotListener:
+//		separate go routines:
+//			1.) attempt snapshot timer and wait for timer to drain, signal attempt snapshot, and reset timer
+//			2.) snapshot signal
+//				-->	if current leader, snapshot the state machine and then signal complete 
+//			3.) update snapshot for node
+//				--> if leader, send the latest snapshot on the system to the target follower
+//			4.) attempt trigger snapshot
+//				--> on interval, check if we can begin the snapshot process
 func (snpService *SnapshotService) StartSnapshotListener() {
 	snpService.AttemptSnapshotTimer = time.NewTimer(AttemptSnapshotInterval)
 	timeoutChan := make(chan bool)
@@ -106,15 +98,11 @@ func (snpService *SnapshotService) StartSnapshotListener() {
 	}()
 }
 
-/*
-	Attempt Trigger Snapshot
-		if the size of the replicated log has exceeded the threshold determined dynamically by available space
-		in the current mount and the current node is the leader, trigger a snapshot event to take a snapshot of
-		the current state to store and broadcast to all followers, also pause the replicated log and let buffer 
-		until the snapshot is complete. If a snapshot is performed, calculate the current system stats to update the
-		dynamic threshold for snapshotting
-*/
-
+//	AttemptTriggerSnapshot:
+//		if the size of the replicated log has exceeded the threshold determined dynamically by available space in the current mount and the current node is the leader, trigger a snapshot event.
+//		this takes a snapshot of the current state to store and broadcast to all followers.
+//		also pause the replicated log and let buffer until the snapshot is complete. 
+//		if a snapshot is performed, calculate the current system stats to update the dynamic threshold for snapshotting.
 func (snpService *SnapshotService) AttemptTriggerSnapshot() (bool, error) {
 	bucketSizeInBytes, getSizeErr := snpService.CurrentSystem.WAL.GetBucketSizeInBytes()
 	if getSizeErr != nil { 

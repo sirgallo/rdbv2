@@ -8,29 +8,14 @@ import (
 )
 
 
-//=========================================== RepLog Utils
+//=========================================== Replication Utils
 
 
-/*
-	Determine Batch Size:
-		TODO: not implemented
-
-		just use 10000 for testing right now --> TODO, make this dynamic
-		maybe find a way to get latest network MB/s and avg log size and determine based on this
-*/
-
-func (rService *ReplicationService) determineBatchSize() int {
-	return 5000
-}
-
-/*
-	prepare an AppendEntryRPC:
-		--> determine what entries to get, which will be the next log index forward for that particular system
-		--> batch the entries
-		--> encode the command entries to string
-		--> create the rpc request from the Log Entry
-*/
-
+//	PrepareAppendEntryRPC:
+//		1.) determine what entries to get, which will be the next log index forward for that particular system
+//		2.) batch the entries
+//		3.) encode the command entries to string
+//		4.) create the rpc request from the log entry
 func (rService *ReplicationService) PrepareAppendEntryRPC(
 	lastLogIndex int64,
 	nextIndex int64,
@@ -91,14 +76,9 @@ func (rService *ReplicationService) PrepareAppendEntryRPC(
 	}, nil
 }
 
-/*
-	Get Alive Systems And Min Success Resps:
-		helper method for both determining the current alive systems in the cluster and also the minimum successful responses
-		needed for committing logs to the state machine
-
-		--> minimum is found by floor(total alive systems / 2) + 1
-*/
-
+// GetAliveSystemsAndMinSuccessResps:
+//		helper method for both determining the current alive systems in the cluster and also the minimum successful responses needed for committing logs to the state machine.
+//		--> minimum is found by floor(total alive systems / 2) + 1
 func (rService *ReplicationService) GetAliveSystemsAndMinSuccessResps() ([]*system.System, int) {
 	var aliveSystems []*system.System
 	var sys *system.System
@@ -113,13 +93,10 @@ func (rService *ReplicationService) GetAliveSystemsAndMinSuccessResps() ([]*syst
 	return aliveSystems, (totAliveSystems / 2) + 1
 }
 
-/*
-	Reset Heartbeat Timer:
-		used to reset the heartbeat timer:
-			--> if unable to stop the timer, drain the timer
-			--> reset the timer with the heartbeat interval
-*/
-
+//	resetHeartbeatTimer:
+//		used to reset the heartbeat timer:
+//		--> if unable to stop the timer, drain the timer
+//		--> reset the timer with the heartbeat interval
 func (rService *ReplicationService) resetHeartbeatTimer() {
 	if ! rService.HeartbeatTimer.Stop() {
 		select {
@@ -131,11 +108,8 @@ func (rService *ReplicationService) resetHeartbeatTimer() {
 	rService.HeartbeatTimer.Reset(HeartbeatInterval)
 }
 
-/*
-	Reset Replog Timer:
-		same as above
-*/
-
+//	resetReplicationTimer:
+//		same as above.
 func (rService *ReplicationService) resetReplicationTimer() {
 	if ! rService.ReplicationTimer.Stop() {
 		select {
@@ -145,4 +119,11 @@ func (rService *ReplicationService) resetReplicationTimer() {
 	}
 
 	rService.ReplicationTimer.Reset(ReplicationInterval)
+}
+
+//	determineBatchSize:
+//		TODO: not implemented
+//			just use 10000 for testing right now --> TODO, make this dynamic maybe find a way to get latest network MB/s and avg log size and determine based on this
+func (rService *ReplicationService) determineBatchSize() int {
+	return 5000
 }

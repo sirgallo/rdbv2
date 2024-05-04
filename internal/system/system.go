@@ -12,15 +12,12 @@ import (
 
 var Log = logger.NewCustomLog(NAME)
 
-/*
-	Transition To Follower:
-		1.) update state to Follower
-		2.) votedFor:
-			if voted for is supplied --> update voted for to the supplied hostname
-			else --> reset voted for to null
-		3.) if current term is supplied, update the system term
-*/
-
+//	TransitionToFollower:
+//		1.) update state to Follower
+//		2.) votedFor:
+//			if voted for is supplied update voted for to the supplied hostname
+//			else reset voted for to null
+//		3.) if current term is supplied, update the system term
 func (sys *System) TransitionToFollower(opts StateTransitionOpts) bool {
 	sys.SystemMutex.Lock()
 	defer sys.SystemMutex.Unlock()
@@ -37,13 +34,10 @@ func (sys *System) TransitionToFollower(opts StateTransitionOpts) bool {
 	return true
 }
 
-/*
-	Transition To Candidate:
-		1.) update the state to Candidate
-		2.) increment the current term by 1
-		3.) update voted for to self
-*/
-
+//	TransitionToCandidate:
+//		1.) update the state to Candidate
+//		2.) increment the current term by 1
+//		3.) update voted for to self
 func (sys *System) TransitionToCandidate() bool {
 	sys.SystemMutex.Lock()
 	defer sys.SystemMutex.Unlock()
@@ -55,11 +49,8 @@ func (sys *System) TransitionToCandidate() bool {
 	return true
 }
 
-/*
-	Transition To Leader:
-		1.) update state to Leader
-*/
-
+//	TransitionToLeader:
+//		1.) update state to Leader
 func (sys *System) TransitionToLeader() bool {
 	sys.SystemMutex.Lock()
 	defer sys.SystemMutex.Unlock()
@@ -69,11 +60,8 @@ func (sys *System) TransitionToLeader() bool {
 	return true
 }
 
-/*
-	Set Current Leader:
-		1.) update the current leader id if not already
-*/
-
+//	SetCurrentLeader:
+//		1.) update the current leader id if not already
 func (sys *System) SetCurrentLeader(leaderId string) bool {
 	sys.SystemMutex.Lock()
 	defer sys.SystemMutex.Unlock()
@@ -82,11 +70,8 @@ func (sys *System) SetCurrentLeader(leaderId string) bool {
 	return true
 }
 
-/*
-	Set Status:
-		1.) update the status of the system to either Dead, Ready, or Busy
-*/
-
+//	SetStatus:
+//		1.) update the status of the system to either Dead, Ready, or Busy
 func (sys *System) SetStatus(status SystemStatus) bool {
 	sys.SystemMutex.Lock()
 	defer sys.SystemMutex.Unlock()
@@ -104,11 +89,8 @@ func (sys *System) SetStatus(status SystemStatus) bool {
 	return true
 }
 
-/*
-	Update Next Index:
-		1.) update the next log index to send for a particular system
-*/
-
+//	UpdateNextIndex:
+//		1.) update the next log index to send for a particular system
 func (sys *System) UpdateNextIndex(newIndex int64) bool {
 	sys.SystemMutex.Lock()
 	defer sys.SystemMutex.Unlock()

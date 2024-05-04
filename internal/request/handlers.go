@@ -14,37 +14,33 @@ import (
 )
 
 
-//=========================================== Snapshot Service Handlers
+//=========================================== Request Service Handlers
 
-/*
-	Register Command Route
-		path: /command
-		method: POST
 
-		request body:
-			{
-				action: "string",
-				payload: {
-					collection: "string",
-					value: "string"
-				}
-			}
-
-		response body:
-			{
-				collection: "string",
-				key: "string" | nil,
-				value: "string" | nil
-			}
-
-	ingest requests and pass from the HTTP Service to the replicated log service if leader,
-	or the relay service if a follower.
-		1.) append a both a unique identifier for the request as well as the current node that the request was sent to.
-		2.) a channel for the request to be returned is created and mapped to the request id in the mapping of response channels
-		2.) A context with timeout is initialized and the route either receives the response back and returns to the client,
-			or the timeout is exceeded and failure is retuned to the client
-*/
-
+//	RegisterCommandRoute:
+//		path: /command
+//		method: POST
+//
+//		request body:
+//			{
+//				action: "string",
+//				payload: {
+//					collection: "string",
+//					value: "string"
+//				}
+//			}
+//
+//		response body:
+//			{
+//				collection: "string",
+//				key: "string" | nil,
+//				value: "string" | nil
+//			}
+//
+//		ingest requests and pass from the HTTP Service to the replicated log service if leader, or the relay service if a follower.
+//			1.) append a both a unique identifier for the request as well as the current node that the request was sent to.
+//			2.) a channel for the request to be returned is created and mapped to the request id in the mapping of response channels
+//			3.) A context with timeout is initialized and the route either receives the response back and returns to the client, or the timeout is exceeded and failure is retuned to the client
 func (reqService *RequestService) RegisterCommandRoute() {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		var handlerErr error

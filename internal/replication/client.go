@@ -12,16 +12,12 @@ import (
 )
 
 
-//=========================================== RepLog Client
+//=========================================== Replication Client
 
 
-/*
-	Heartbeat:
-		for all systems in the System Map, send an empty AppendEntryRPC
-
-		If a higher term is discovered in a response, revert the Leader back to Follower State
-*/
-
+// Heartbeat:
+//	for all systems in the System Map, send an empty AppendEntryRPC:
+//		if a higher term is discovered in a response, revert the leader back to follower state.
 func (rService *ReplicationService) Heartbeat() error {
 	var hbWG sync.WaitGroup
 	var heartbeatErr error
@@ -75,19 +71,16 @@ func (rService *ReplicationService) Heartbeat() error {
 	return nil
 }
 
-/*
-	Replicate Logs:
-		1.) append the new log to the WAL on the Leader,
-			--> index is just the index of the last log + 1
-			--> term is the current term on the leader
-		2.) prepare AppendEntryRPCs for each system in the Systems Map
-			--> determine the next index of the system that the rpc is prepared for from the system object at NextIndex
-		3.) on responses
-			--> if the Leader receives a success signal from the majority of the nodes in the cluster, apply the logs to the state machine
-			--> if a response with a higher term than its own, revert to Follower state
-			--> if a response with a last log index less than current log index on leader, sync logs until up to date
-*/
-
+// ReplicateLogs:
+//		1.) append the new log to the WAL on the Leader,
+//			--> index is just the index of the last log + 1
+//			--> term is the current term on the leader
+//		2.) prepare AppendEntryRPCs for each system in the Systems Map
+//			--> determine the next index of the system that the rpc is prepared for from the system object at NextIndex
+//		3.) on responses
+//			--> if the Leader receives a success signal from the majority of the nodes in the cluster, apply the logs to the state machine
+//			--> if a response with a higher term than its own, revert to Follower state
+//			--> if a response with a last log index less than current log index on leader, sync logs until up to date
 func (rService *ReplicationService) ReplicateLogs() error {
 	var repLogWG sync.WaitGroup
 	var replicateErr error
@@ -155,25 +148,22 @@ func (rService *ReplicationService) ReplicateLogs() error {
 	return nil
 }
 
-/*
-	Shared Broadcast RPC function:
-		utilized by all three functions above
-
-		for requests to be broadcasted:
-			1.) send AppendEntryRPCs in parallel to each follower in the cluster
-			2.) in each go routine handling each request, perform exponential backoff on failed requests until max retries
-			3.)
-				if err: remove system from system map and close all connections -- it has failed
-				if res:
-					if success:
-						--> update total successful replies and update the next index of the system to the last log index of the reply
-					else if failure and the reply has higher term than the leader:
-						--> update the state of the leader to follower, recognize a higher term and thus a more correct log
-						--> signal that a higher term has been discovered and cancel all leftover requests
-					otherwise if failure:
-						--> sync the follower up to the leader for any inconsistent log entries
-*/
-
+// broadcastAppendEntryRPC:
+//		utilized by all three functions above
+//
+//		for requests to be broadcasted:
+//			1.) send AppendEntryRPCs in parallel to each follower in the cluster
+//			2.) in each go routine handling each request, perform exponential backoff on failed requests until max retries
+//			3.)
+//				if err: remove system from system map and close all connections -- it has failed
+//				if res:
+//					if success:
+//						--> update total successful replies and update the next index of the system to the last log index of the reply
+//					else if failure and the reply has higher term than the leader:
+//						--> update the state of the leader to follower, recognize a higher term and thus a more correct log
+//						--> signal that a higher term has been discovered and cancel all leftover requests
+//					otherwise if failure:
+//						--> sync the follower up to the leader for any inconsistent log entries
 func (rService *ReplicationService) broadcastAppendEntryRPC(requestsPerHost []ReplicatedLogRequest, rlRespChans ReplicationResponseChannels) error {
 	var appendEntryWG sync.WaitGroup
 
@@ -226,15 +216,12 @@ func (rService *ReplicationService) broadcastAppendEntryRPC(requestsPerHost []Re
 	return nil
 }
 
-/*
-	Client Append Entry RPC:
-		helper method for making individual rpc calls
-
-		perform exponential backoff
-		--> success: update system NextIndex and return result
-		--> error: remove system from system map and close all open connections
-*/
-
+// clientAppendEntryRPC:
+//		helper method for making individual rpc calls
+//
+//		perform exponential backoff
+//			--> success: update system NextIndex and return result
+//			--> error: remove system from system map and close all open connections
 func (rService *ReplicationService) clientAppendEntryRPC(conn *grpc.ClientConn, sys *system.System, req ReplicatedLogRequest) (*replication_proto.AppendEntryResponse, error) {
 	client := replication_proto.NewReplicationServiceClient(conn)
 	appendEntryRPC := func() (*replication_proto.AppendEntryResponse, error) {

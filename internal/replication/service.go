@@ -13,13 +13,11 @@ import (
 )
 
 
-//=========================================== RepLog Service
+//=========================================== Replication Service
 
 
-/*
-	create a new service instance with passable options
-*/
-
+//	NewReplicationService:
+//		create new replication service instance
 func NewReplicationService(opts *ReplicationOpts) *ReplicationService {
 	return &ReplicationService{
 		Port: rdbUtils.NormalizePort(opts.Port),
@@ -41,12 +39,8 @@ func NewReplicationService(opts *ReplicationOpts) *ReplicationService {
 	}
 }
 
-/*
-	start the replicated log module/service:
-		--> launch the grc server for AppendEntryRPC
-		--> start the log timeouts
-*/
-
+//	Start the replication module/service:
+//		launch the grc server for AppendEntryRPCbstart the log timeouts
 func (rService *ReplicationService) StartReplicatedLogService(listener *net.Listener) {
 	srv := grpc.NewServer()
 	rService.Log.Info(RPC_SERVER_LISTENING, rService.CurrentSystem.Host, rService.Port)
@@ -60,39 +54,22 @@ func (rService *ReplicationService) StartReplicatedLogService(listener *net.List
 	rService.StartReplicatedLogTimeout()
 }
 
-/*
-	Start both leader and follower specific go routines
-*/
-
+// Start both leader and follower specific go routines
 func (rService *ReplicationService) StartReplicatedLogTimeout() {
 	go rService.LeaderGoRoutines()
 	go rService.FollowerGoRoutines()
 }
 
-/*
-	Leader Go Routines:
-		separate go routines:
-			1.) heartbeat timeout
-				--> wait for timer to drain, signal heartbeat, and reset timer
-			2.) replicate log timeout:
-				--> wait for timer to drain, signal to replicate logs to followers, and reset timer
-			3.) heartbeat
-				--> on a set interval, heartbeat all of the followers in the cluster if leader
-			4.) append log signal
-				--> on incoming logs from the request module, determine if the log is a read or write op
-					and handle accordingly
-			5.) read operation handler
-				--> on read operations, do not apply to replicated log and instead read directly from 
-					db -- since data is not modified, this is an optimization to improve latency on reads
-			6.) write operation handler
-				--> append logs to the replicated log in order as the leader receives them
-			7.) replicated log
-				--> after the replicate log timeout completes, begin replication to followers
-			8.) sync logs
-				--> for systems with inconsistent replicated logs, start a separate go routine to sync
-					them back up to the leader
-*/
-
+// 	Leader Go Routines:
+//		separate go routines:
+//			1.) heartbeat timeoutn and wait for timer to drain, signal heartbeat, and reset timer
+//			2.) replicate log timeout and wait for timer to drain, signal to replicate logs to followers, and reset timer
+//			3.) heartbeat on a set interval, heartbeat all of the followers in the cluster if leader
+//			4.) append log signal on incoming logs from the request module, determine if the log is a read or write op and handle accordingly
+//			5.) read operation handler on read operations, do not apply to replicated log and instead read directly from db -- since data is not modified, this is an optimization to improve latency on reads
+//			6.) write operation handler appends logs to the replicated log in order as the leader receives them
+//			7.) replicated log after the replicate log timeout completes, begin replication to followers
+//			8.) sync logs for systems with inconsistent replicated logs, start a separate go routine to sync them back up to the leader
 func (rService *ReplicationService) LeaderGoRoutines() {
 	rService.HeartbeatTimer = time.NewTimer(HeartbeatInterval)
 	rService.ReplicationTimer = time.NewTimer(ReplicationInterval)
@@ -188,17 +165,10 @@ func (rService *ReplicationService) LeaderGoRoutines() {
 	}()
 }
 
-/*
-	Follower Go Routines:
-		separate go routines:
-			1.) process logs
-				--> as logs are received from AppendEntryRPCs from the leader, process the logs synchronously 
-				and signal to the request when complete
-			2.) apply logs to state machine
-				--> when signalled by a request, and available, apply logs to the state machine up to the request
-					commit index
-*/
-
+// 	Follower Go Routines:
+//		separate go routines:
+//			1.) process logs as logs are received from AppendEntryRPCs from the leader, process the logs synchronously and signal to the request when complete
+//			2.) apply logs to state machine when signalled by a request, and available, apply logs to the state machine up to the request commit index
 func (rService *ReplicationService) FollowerGoRoutines() {
 	go func() {
 		var applyErr error

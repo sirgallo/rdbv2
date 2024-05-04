@@ -12,45 +12,39 @@ import (
 )
 
 
-//=========================================== Leader Election Client
+//=========================================== Campaign Client
 
-/*
-	Election:
-		when the election timeout is reached, an election occurs
 
-		1.) the current system updates itself to candidate state, votes for itself, and updates the term monotonically
-		2.) send RequestVoteRPCs in parallel
-		3.) if the candidate receives the minimum number of votes required to be a leader (so quorum),
-			the leader updates its state to Leader and immediately sends heartbeats to establish authority. On transition
-			to leader, the new leader will also update the next index of all of the known systems to reflect the last log
-			index on the system
-		4.) if a higher term is discovered, update the current term of the candidate to reflect this and revert back to
-			Follower state
-		5.) otherwise, set the system back to Follower, reset the VotedFor field, and reinitialize the
-			leader election timeout --> so randomly generate new timeout period for the system
-*/
-
+//	Election:
+//		when the election timeout is reached, an election occurs:
+//			1.) the current system updates itself to candidate state, votes for itself, and updates the term monotonically
+//			2.) send RequestVoteRPCs in parallel
+//			3.) if the candidate receives the minimum number of votes required to be a leader (so quorum):
+//					-->	the leader updates its state to Leader and immediately sends heartbeats to establish authority. 
+//						-->	On transition to leader, the new leader will also update the next index of all of the known systems to reflect the last log index on the system
+//			4.) if a higher term is discovered, update the current term of the candidate to reflect this and revert back to follower state
+//			5.) otherwise, set the system back to Follower, reset the VotedFor field, and reinitialize the leader election timeout, so randomly generate new timeout period for the system
 func (cService *CampaignService) Election() error {
-	var electionWG sync.WaitGroup
+	var campaignWG sync.WaitGroup
 	var electionErr error
 
 	cService.CurrentSystem.TransitionToCandidate()
-	leRespChans := cService.createLERespChannels()
+	cRespChans := cService.createLERespChannels()
 
-	defer close(leRespChans.VotesChan)
-	defer close(leRespChans.HigherTermDiscovered)
+	defer close(cRespChans.VotesChan)
+	defer close(cRespChans.HigherTermDiscovered)
 
 	aliveSystems, minimumVotes := cService.GetAliveSystemsAndMinVotes()
 	votesGranted := int64(1)
 	electionErrChan := make(chan error, 1)
 
-	electionWG.Add(1)
+	campaignWG.Add(1)
 	go func() {
-		defer electionWG.Done()
+		defer campaignWG.Done()
 
 		for {
 			select {
-			case <- leRespChans.BroadcastClose:
+			case <- cRespChans.BroadcastClose:
 				if votesGranted >= int64(minimumVotes) {
 					cService.CurrentSystem.TransitionToLeader()
 					
@@ -75,9 +69,9 @@ func (cService *CampaignService) Election() error {
 				}
 
 				return 
-			case <- leRespChans.VotesChan:
+			case <- cRespChans.VotesChan:
 				atomic.AddInt64(&votesGranted, 1)
-			case term :=<- leRespChans.HigherTermDiscovered:
+			case term :=<- cRespChans.HigherTermDiscovered:
 				cService.Log.Warn(HIGHER_TERM_ERROR)
 				cService.CurrentSystem.TransitionToFollower(system.StateTransitionOpts{ CurrentTerm: &term })
 				cService.attemptResetTimeoutSignal()
@@ -86,14 +80,14 @@ func (cService *CampaignService) Election() error {
 		}
 	}()
 
-	electionWG.Add(1)
+	campaignWG.Add(1)
 	go func() {
-		defer electionWG.Done()
-		broadcastErr := cService.broadcastVotes(aliveSystems, leRespChans)
+		defer campaignWG.Done()
+		broadcastErr := cService.broadcastVotes(aliveSystems, cRespChans)
 		if broadcastErr != nil { cService.Log.Error(BROADCAST_ERROR, broadcastErr.Error()) }
 	}()
 
-	electionWG.Wait()
+	campaignWG.Wait()
 
 	select {
 	case incomingErr :=<- electionErrChan:
@@ -103,19 +97,16 @@ func (cService *CampaignService) Election() error {
 	}
 }
 
-/*
-	Broadcast Votes:
-		utilized by the Election function
-		
-		RequestVoteRPCs are generated and a go routine is spawned for each system that a request is being sent to. If a higher term 
-		is discovered, all go routines are signalled to stop broadcasting.
-*/
-
-func (cService *CampaignService) broadcastVotes(aliveSystems []*system.System, leRespChans CampaignResponseChannels) error {
+//	broadcastVotes:
+//		utilized by the Election function
+//		
+//		RequestVoteRPCs are generated and a go routine is spawned for each system that a request is being sent to. 
+//		if a higher term  is discovered, all go routines are signalled to stop broadcasting.
+func (cService *CampaignService) broadcastVotes(aliveSystems []*system.System, cRespChans CampaignResponseChannels) error {
 	var requestVoteWG sync.WaitGroup
 	var broadcastErr error
 	
-	defer close(leRespChans.BroadcastClose)
+	defer close(cRespChans.BroadcastClose)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -175,9 +166,9 @@ func (cService *CampaignService) broadcastVotes(aliveSystems []*system.System, l
 					return 
 				}
 
-				if res.VoteGranted { leRespChans.VotesChan <- 1 }
+				if res.VoteGranted { cRespChans.VotesChan <- 1 }
 				if res.Term > cService.CurrentSystem.CurrentTerm {
-					leRespChans.HigherTermDiscovered <- res.Term
+					cRespChans.HigherTermDiscovered <- res.Term
 					cancel()
 				}
 			

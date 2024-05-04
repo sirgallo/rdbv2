@@ -9,16 +9,15 @@ import (
 	"github.com/sirgallo/utils"
 )
 
-//=========================================== Write Ahead Log ReplicatedLog Bucket Ops
 
-/*
-	Append
-		create a read-write transaction for the bucket to append a single new entry
-			1.) get the current bucket
-			2.) transform the entry and key to byte arrays
-			3.) put the key and value in the bucket
-*/
+//=========================================== WAL Bucket Ops
 
+
+//	Append:
+//		create a read-write transaction for the bucket to append a single new entry:
+//			1.) get the current bucket
+//			2.) transform the entry and key to byte arrays
+//			3.) put the key and value in the bucket
 func (wal *WAL) Append(entry *replication_proto.LogEntry) error {
 	transaction := func(tx *bolt.Tx) error {
 		var totalBytesAdded, totalKeysAdded int64
@@ -46,13 +45,10 @@ func (wal *WAL) Append(entry *replication_proto.LogEntry) error {
 	return nil
 }
 
-/*
-	Range Append
-		create a read-write transaction for the bucket to append a set of new entries
-			1.) get the current bucket
-			2.) iterate over the new entries and perform the same as single Append
-*/
-
+//	RangeAppend:
+//		create a read-write transaction for the bucket to append a set of new entries
+//			1.) get the current bucket
+//			2.) iterate over the new entries and perform the same as single Append
 func (wal *WAL) RangeAppend(logs []*replication_proto.LogEntry) error {
 	var rangeUpdateErr error
 
@@ -91,14 +87,11 @@ func (wal *WAL) RangeAppend(logs []*replication_proto.LogEntry) error {
 	return nil
 }
 
-/*
-	Read
-		create a read transaction for getting a single key-value entry
-			1.) get the current bucket
-			2.) get the value for the key as bytes
-			3.) transform the byte array back to an entry and return
-*/
-
+//	Read:
+//		create a read transaction for getting a single key-value entry:
+//			1.) get the current bucket
+//			2.) get the value for the key as bytes
+//			3.) transform the byte array back to an entry and return
 func (wal *WAL) Read(index int64) (*replication_proto.LogEntry, error) {
 	var entry *replication_proto.LogEntry
 	var readErr error
@@ -125,16 +118,13 @@ func (wal *WAL) Read(index int64) (*replication_proto.LogEntry, error) {
 	return entry, nil
 }
 
-/*
-	Get Range
-		create a read transaction for getting a range of entries
-			1.) get the current bucket
-			2.) create a cursor for the bucket
-			3.) seek from the specified start index and iterate until end
-			4.) for each value, transform from byte array to entry and append to return array
-			5.) return all entries
-*/
-
+//	GetRange
+//		create a read transaction for getting a range of entries:
+//			1.) get the current bucket
+//			2.) create a cursor for the bucket
+//			3.) seek from the specified start index and iterate until end
+//			4.) for each value, transform from byte array to entry and append to return array
+//			5.) return all entries
 func (wal *WAL) GetRange(startIndex int64, endIndex int64) ([]*replication_proto.LogEntry, error) {
 	var entries []*replication_proto.LogEntry
 	var readErr error
@@ -167,14 +157,11 @@ func (wal *WAL) GetRange(startIndex int64, endIndex int64) ([]*replication_proto
 	return entries, nil
 }
 
-/*
-	Get Latest
-		create a read transaction for getting the latest entry in the bucket
-			1.) get the current bucket
-			2.) create a cursor for the bucket and point at the last element in the bucket
-			3.) transform the value from byte array to entry and return the entry
-*/
-
+//	GetLatest:
+//		create a read transaction for getting the latest entry in the bucket:
+//			1.) get the current bucket
+//			2.) create a cursor for the bucket and point at the last element in the bucket
+//			3.) transform the value from byte array to entry and return the entry
 func (wal *WAL) GetLatest() (*replication_proto.LogEntry, error) {
 	var entry *replication_proto.LogEntry
 	var readErr error
@@ -202,14 +189,11 @@ func (wal *WAL) GetLatest() (*replication_proto.LogEntry, error) {
 	return entry, nil
 }
 
-/*
-	Get Earliest
-		create a read transaction for getting the latest entry in the bucket
-			1.) get the current bucket
-			2.) create a cursor for the bucket and point at the first element in the bucket
-			3.) transform the value from byte array to entry and return the entry
-*/
-
+//	GetEarliest:
+//		create a read transaction for getting the latest entry in the bucket:
+//			1.) get the current bucket
+//			2.) create a cursor for the bucket and point at the first element in the bucket
+//			3.) transform the value from byte array to entry and return the entry
 func (wal *WAL) GetEarliest() (*replication_proto.LogEntry, error) {
 	var entry *replication_proto.LogEntry
 	var readErr error
@@ -237,14 +221,11 @@ func (wal *WAL) GetEarliest() (*replication_proto.LogEntry, error) {
 	return entry, nil
 }
 
-/*
-	Delete Logs
-		create a read-write transaction for log compaction in the bucket
-			1.) for all logs up tothe last index, delete the key-value pair
-			2.) for each deleted, update the total keys and the total space removed from the log
-			3.) get latest log (last applied), and remove all indexes up to it
-*/
-
+//	DeleteLogsUpToLastIncluded:
+//		create a read-write transaction for log compaction in the bucket:
+//			1.) for all logs up tothe last index, delete the key-value pair
+//			2.) for each deleted, update the total keys and the total space removed from the log
+//			3.) get latest log (last applied), and remove all indexes up to it
 func (wal *WAL) DeleteLogsUpToLastIncluded(endIndex int64) (int64, int64, error) {
 	var currentChunkEndIndex, subTotalBytes, subKeys int64
 	var delErr, subErr error
@@ -323,12 +304,9 @@ func (wal *WAL) RangeDelete(startIndex, endIndex int64) (int64, int64, error) {
 	return totalBytesRemoved, totalKeysRemoved, nil
 } 
 
-/*
-	Get Total
-		create a read transaction for getting total keys in the bucket
-			1.) read from the stats bucket and check the indexed total value
-*/
-
+//	GetTotal:
+//		create a read transaction for getting total keys in the bucket:
+//			1.) read from the stats bucket and check the indexed total value
 func (wal *WAL) GetTotal() (int, error) {
 	var readErr error
 	totalKeys := 0
@@ -347,12 +325,9 @@ func (wal *WAL) GetTotal() (int, error) {
 	return totalKeys, nil
 }
 
-/*
-	Get Bucket Size In Bytes
-		create a read transaction for getting total size of the replicated log in bytes
-			1.) read from the stats bucket and check the indexed total size
-*/
-
+//	GetBucketSizeInBytes:
+//		create a read transaction for getting total size of the replicated log in bytes:
+//			1.) read from the stats bucket and check the indexed total size
 func (wal *WAL) GetBucketSizeInBytes() (int64, error) {
 	var getSizeErr error
 	totalSize := int64(0)
@@ -371,11 +346,8 @@ func (wal *WAL) GetBucketSizeInBytes() (int64, error) {
 	return totalSize, nil
 }
 
-/*
-	Update ReplicatedLog Stats
-		helper function for updating both the indexes for total keys and total size of the replicated log
-*/
-
+//	UpdateReplicationStats:
+//		helper function for updating both the indexes for total keys and total size of the replicated log.
 func (wal *WAL) UpdateReplicationStats(bucket *bolt.Bucket, numUpdatedBytes int64, numUpdatedKeys int64, op StatOP) error {
 	var bucketSize, totalKeys, newBucketSize, newTotal int64
 	var currStat []byte
@@ -411,11 +383,8 @@ func (wal *WAL) UpdateReplicationStats(bucket *bolt.Bucket, numUpdatedBytes int6
 	return nil
 }
 
-/*
-	Get Indexed Entry For Term
-		For the given term, check the indexed value and to get the earliest known entry
-*/
-
+//	GetIndexedEntryForTerm:
+//		for the given term, check the indexed value and to get the earliest known entry.
 func (wal *WAL) GetIndexedEntryForTerm(term int64) (*replication_proto.LogEntry, error) {
 	var entry *replication_proto.LogEntry
 	var getIndexErr error
@@ -442,11 +411,8 @@ func (wal *WAL) GetIndexedEntryForTerm(term int64) (*replication_proto.LogEntry,
 	return entry, nil
 }
 
-/*
-	Append Helper
-		shared function for appending entries to the replicated log
-*/
-
+//	appendHelper:
+//		shared function for appending entries to the replicated log.
 func (wal *WAL) appendHelper(bucket *bolt.Bucket, entry *replication_proto.LogEntry) (int64, int64, error) {
 	var value []byte
 	var appendErr error
@@ -461,6 +427,8 @@ func (wal *WAL) appendHelper(bucket *bolt.Bucket, entry *replication_proto.LogEn
 	return int64(len(key)), int64(len(value)), nil // total bytes, total keys, no err
 }
 
+//	deleteLogsHelper:
+//		shared function for deleting entries to the replicated log.
 func (wal *WAL) deleteLogsHelper(bucket *bolt.Bucket, startIndex, endIndex int64) (int64, int64, error){
 	var entry replication_proto.LogEntry
 	var firstTermInBatch int64
@@ -510,11 +478,8 @@ func (wal *WAL) deleteLogsHelper(bucket *bolt.Bucket, startIndex, endIndex int64
 	return totalBytesRemoved, totalKeysRemoved, nil
 }
 
-/*
-	Get Latest Indexed Entry
-		get the earliest known entry for the latest term known in the cluster
-*/
-
+//	getLatestIndexedEntry:
+//		get the earliest known entry for the latest term known in the cluster.
 func (wal *WAL) getLatestIndexedEntry(bucket *bolt.Bucket) (*replication_proto.LogEntry, error) {
 	var entry replication_proto.LogEntry
 	var transformErr error
@@ -532,10 +497,8 @@ func (wal *WAL) getLatestIndexedEntry(bucket *bolt.Bucket) (*replication_proto.L
 	return &entry, nil
 }
 
-/*
-	When a higher term than previously known is discovered, update the index to include the first entry associated with term
-*/
-
+//	setIndexForFirstLogInTerm:
+//		when a higher term than previously known is discovered, update the index to include the first entry associated with term.
 func (wal *WAL) setIndexForFirstLogInTerm(
 	bucket *bolt.Bucket,
 	newEntry *replication_proto.LogEntry,

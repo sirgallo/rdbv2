@@ -11,20 +11,16 @@ import (
 //=========================================== Snapshot Server
 
 
-/*
-	StreamSnapshotRPC
-		grpc server implementation
-
-		as snapshot chunks enter the stream
-			1.) if first chunk, set the metadata for the snapshot (last included index, term, and file path) and open the file
-				to stream the compressed chunks into
-			2.) for each chunk, write to the snapshot file
-			3.) on stream end, break
-			4.) index the snapshot in the wal db
-			5.) compact the logs up to the last included log
-			6.) return a successful response to the leader
-*/
-
+//	StreamSnapshotRPC:
+//		grpc server implementation
+//	
+//		as snapshot chunks enter the stream:
+//			1.) if first chunk, set the metadata for the snapshot (last included index, term, and file path) and open the file to stream the compressed chunks into
+//			2.) for each chunk, write to the snapshot file
+//			3.) on stream end, break
+//			4.) index the snapshot in the wal db
+//			5.) compact the logs up to the last included log
+//			6.) return a successful response to the leader
 func (snpService *SnapshotService) StreamSnapshotRPC(stream snapshot_proto.SnapshotService_StreamSnapshotRPCServer) error {
 	var snapshotFile *os.File
 	var snapshotFilePath string

@@ -7,15 +7,11 @@ import (
 )
 
 
-//=========================================== Write Ahead Log Stats Ops
+//=========================================== WAL Stats Ops
 
 
-/*
-	Set Stat
-		set the latest statistic in the time series
-			--> keys are iso strings, so keys are stored earliest to latest
-*/
-
+//	SetStat:
+//		set the latest statistic in the time series where keys are iso strings, so keys are stored earliest to latest.
 func (wal *WAL) SetStat(statObj stats.Stats) error {
 	var setErr error
 
@@ -38,11 +34,8 @@ func (wal *WAL) SetStat(statObj stats.Stats) error {
 	return nil
 }
 
-/*
-	Get Stats
-		Get the current stats in the time series
-*/
-
+//	GetStats:
+//		get the current stats in the time series.
 func (wal *WAL) GetStats() ([]stats.Stats, error) {
 	var statsArr []stats.Stats
 	var getErr error
@@ -67,12 +60,8 @@ func (wal *WAL) GetStats() ([]stats.Stats, error) {
 	return statsArr, nil
 }
 
-/*
-	Delete Stats
-		stats in the time series are limited to a fixed size, so when the size limit is hit,
-		delete the earliest keys up to the limit
-*/
-
+//	DeleteStats:
+//		stats in the time series are limited to a fixed size, so when the size limit is hit, delete the earliest keys up to the limit.
 func (wal *WAL) DeleteStats() error {	
 	var deleteErr error
 
