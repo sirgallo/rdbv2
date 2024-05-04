@@ -9,6 +9,7 @@ WORKDIR $HOME/rdb
 
 COPY internal ./internal
 COPY cmd ./cmd
+COPY vendor ./vendor
 COPY module.go \
   rdb.go \
   types.go \
