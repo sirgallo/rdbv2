@@ -116,7 +116,7 @@ Performance can take a hit with unnecessary memory allocations, as this adds ove
 
 If the raft implementation treats only writes as log entries, since these are the only operations mutating the state machine, this will significantly reduce the overhead introduced from file io operations performed by the write ahead log. By minimizing writes, this will reduce overall response time for writes and will significantly reduce the response time for reads since reads will not invoke any additional file operations.
 
-**With the above optimizations, latency was reduced by a factor of 5 from the v1 implementation of rdb, and throughput was increased by 11%**
+**With the above optimizations, latency was reduced by a factor of 5 from the v1 implementation of rdb and throughput was increased by 11%**
 
 While throughput increased modestly with these changes, the latency had a massive improvement, which will actually have a much more important impact on user experience since individiual requests will be returned to client much quicker, improving overall user experience.
 
