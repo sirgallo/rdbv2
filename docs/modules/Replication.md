@@ -49,7 +49,7 @@ message LogEntry {
 }
 ```
 
-where the index is the index of the log, the term is the current term of the applied log, and the command is the command, encoded to string, that mutates the state machine. The command can be of struct type `T`, where it contains the necessary actions with a data payload to update the state machine.
+where the index is the index of the log, the term is the current term of the applied log, and the command is the command, encoded to bytes, that mutates the state machine. The command contains the actions against the state machine, as well as the payload associated with that action.
 
 
 ### Heartbeat
