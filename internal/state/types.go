@@ -14,13 +14,13 @@ type StateOperationPayload struct {
 }
 
 type StateOperation struct {
-	RequestID string `json:"-"`
+	RequestId string `json:"-"`
 	Action Action `json:"action"`
 	Payload StateOperationPayload `json:"payload"`
 }
 
 type StateResponse struct {
-	RequestID string `json:"-"`
+	RequestId string `json:"-"`
 	Collection string `json:"collection"`
 	Key string `json:"key"`
 	Value string `json:"value"`

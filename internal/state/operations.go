@@ -5,6 +5,7 @@ import (
 	bolt "go.etcd.io/bbolt"
 	"github.com/sirgallo/utils"
 	
+	"github.com/sirgallo/rdbv2/internal/replication/replication_proto"
 	rdbUtils "github.com/sirgallo/rdbv2/internal/utils"
 )
 
@@ -51,34 +52,34 @@ import (
 			--> do a lookup on the collection bucket and get all collections names
 */
 
-func (sm *State) BulkWrite(ops []*StateOperation) ([]*StateResponse, error) {
+func (sm *State) BulkWrite(ops []*replication_proto.LogEntry) ([]*StateResponse, error) {
 	responses := []*StateResponse{}
 
 	transaction := func(tx *bolt.Tx) error {
 		root := tx.Bucket([]byte(RootBucket))
 
 		for _, op := range ops {
-			_, createCollectionErr := sm.createCollection(root, op.Payload.Collection)
+			_, createCollectionErr := sm.createCollection(root, op.Command.Payload.Collection)
 			if createCollectionErr != nil { return createCollectionErr }
 
-			switch op.Action {
+			switch string(op.Command.Action) {
 			case PUT:
-				putResp, insertErr := sm.insertIntoCollection(root, &op.Payload)
+				putResp, insertErr := sm.insertIntoCollection(root, op.Command.Payload)
 				if insertErr != nil { return insertErr}
 
-				putResp.RequestID = op.RequestID
+				putResp.RequestId = string(op.Command.RequestId)
 				responses = append(responses, putResp)
 			case DELETE:
-				deleteResp, deleteErr := sm.deleteFromCollection(root, &op.Payload)
+				deleteResp, deleteErr := sm.deleteFromCollection(root, op.Command.Payload)
 				if deleteErr != nil { return deleteErr }
 
-				deleteResp.RequestID = op.RequestID
+				deleteResp.RequestId = string(op.Command.RequestId)
 				responses = append(responses, deleteResp)
 			case DROPCOLLECTION:
-				dropResp, dropErr := sm.dropCollection(root, &op.Payload)
+				dropResp, dropErr := sm.dropCollection(root, op.Command.Payload)
 				if dropErr != nil { return dropErr }
 
-				dropResp.RequestID = op.RequestID
+				dropResp.RequestId = string(op.Command.RequestId)
 				responses = append(responses, dropResp)
 			}
 		}
@@ -101,16 +102,24 @@ func (sm *State) Read(op *StateOperation) (*StateResponse, error) {
 
 		switch op.Action {
 		case GET:
-			searchResp, searchErr := sm.searchInCollection(root, &op.Payload)
+			searchResp, searchErr := sm.searchInCollection(root, &replication_proto.CommandPayload{
+				Collection: []byte(op.Payload.Collection),
+				Value: []byte(op.Payload.Value),
+			})
+
 			if searchErr != nil { return searchErr }
 
-			searchResp.RequestID = op.RequestID
+			searchResp.RequestId = string(op.RequestId)
 			response = searchResp
 		case LISTCOLLECTIONS:
-			listResp, listErr := sm.listCollections(root, &op.Payload)
+			listResp, listErr := sm.listCollections(root, &replication_proto.CommandPayload{
+				Collection: []byte(op.Payload.Collection),
+				Value: []byte(op.Payload.Value),
+			})
+			
 			if listErr != nil { return listErr }
 
-			listResp.RequestID = op.RequestID
+			listResp.RequestId = string(op.RequestId)
 			response = listResp
 		}
 
@@ -127,11 +136,10 @@ func (sm *State) Read(op *StateOperation) (*StateResponse, error) {
 	All functions below are helper functions for each of the above state machine operations
 */
 
-func (sm *State) listCollections(bucket *bolt.Bucket, payload *StateOperationPayload) (*StateResponse, error) {
+func (sm *State) listCollections(bucket *bolt.Bucket, payload *replication_proto.CommandPayload) (*StateResponse, error) {
 	var collections []string
 
-	collectionBucketName := []byte(CollectionBucket)
-	collectionBucket := bucket.Bucket(collectionBucketName)
+	collectionBucket := bucket.Bucket([]byte(CollectionBucket))
 	cursor := collectionBucket.Cursor()
 
 	for key, val := cursor.First(); key != nil; key, val = cursor.Next() {
@@ -141,9 +149,8 @@ func (sm *State) listCollections(bucket *bolt.Bucket, payload *StateOperationPay
 	return &StateResponse{ Value: strings.Join(collections, ", ") }, nil
 }
 
-func (sm *State) insertIntoCollection(bucket *bolt.Bucket, payload *StateOperationPayload) (*StateResponse, error) {
-	collectionName := []byte(payload.Collection)
-	collection := bucket.Bucket(collectionName)
+func (sm *State) insertIntoCollection(bucket *bolt.Bucket, payload *replication_proto.CommandPayload) (*StateResponse, error) {
+	collection := bucket.Bucket(payload.Collection)
 
 	searchIndexResp, searchErr := sm.searchInIndex(bucket, payload)
 	if searchErr != nil { return nil, searchErr }
@@ -153,9 +160,7 @@ func (sm *State) insertIntoCollection(bucket *bolt.Bucket, payload *StateOperati
 	if hashErr != nil { return nil, hashErr }
 
 	generatedKey := []byte(hash)
-	value := []byte(payload.Value)
-
-	putErr := collection.Put(generatedKey, value)
+	putErr := collection.Put(generatedKey, payload.Value)
 	if putErr != nil { return nil, putErr }
 
 	insertIndexResp, insertErr := sm.insertIntoIndex(bucket, payload, generatedKey)
@@ -164,19 +169,18 @@ func (sm *State) insertIntoCollection(bucket *bolt.Bucket, payload *StateOperati
 	return insertIndexResp, nil
 }
 
-func (sm *State) searchInCollection(bucket *bolt.Bucket, payload *StateOperationPayload) (*StateResponse, error) {
+func (sm *State) searchInCollection(bucket *bolt.Bucket, payload *replication_proto.CommandPayload) (*StateResponse, error) {
 	indexResp, searchErr := sm.searchInIndex(bucket, payload)
 	if searchErr != nil { return nil, searchErr }
 
 	return indexResp, nil
 }
 
-func (sm *State) deleteFromCollection(bucket *bolt.Bucket, payload *StateOperationPayload) (*StateResponse, error) {
-	collectionName := []byte(payload.Collection)
-	collection := bucket.Bucket(collectionName)
+func (sm *State) deleteFromCollection(bucket *bolt.Bucket, payload *replication_proto.CommandPayload) (*StateResponse, error) {
+	collection := bucket.Bucket(payload.Collection)
 
 	indexResp, searchErr := sm.searchInIndex(bucket, payload)
-	if searchErr != nil { return &StateResponse{ Collection: payload.Collection }, searchErr }
+	if searchErr != nil { return &StateResponse{ Collection: string(payload.Collection) }, searchErr }
 
 	delErr := collection.Delete([]byte(indexResp.Key))
 	if delErr != nil { return nil, delErr }
@@ -187,74 +191,68 @@ func (sm *State) deleteFromCollection(bucket *bolt.Bucket, payload *StateOperati
 	return indexDelResp, nil
 }
 
-func (sm *State) dropCollection(bucket *bolt.Bucket, payload *StateOperationPayload) (*StateResponse, error) {
-	collectionName := []byte(payload.Collection)
-
-	delColErr := bucket.DeleteBucket(collectionName)
+func (sm *State) dropCollection(bucket *bolt.Bucket, payload *replication_proto.CommandPayload) (*StateResponse, error) {
+	delColErr := bucket.DeleteBucket(payload.Collection)
 	if delColErr != nil { return nil, delColErr }
 
-	delIndexErr := bucket.DeleteBucket([]byte(payload.Collection + IndexSuffix))
+	delIndexErr := bucket.DeleteBucket(append(payload.Collection, []byte(IndexSuffix)...))
 	if delIndexErr != nil { return nil, delIndexErr }
 
-	collectionBucketName := []byte(CollectionBucket)
-	collectionBucket := bucket.Bucket(collectionBucketName)
-	
-	indexBucketName := []byte(IndexBucket)
-	indexBucket := bucket.Bucket(indexBucketName)
+	collectionBucket := bucket.Bucket([]byte(CollectionBucket))
+	indexBucket := bucket.Bucket([]byte(IndexBucket))
 
-	delFromColBucketErr := collectionBucket.Delete(collectionName)
+	delFromColBucketErr := collectionBucket.Delete(payload.Collection)
 	if delFromColBucketErr != nil { return nil, delFromColBucketErr }
 
-	delFromIndexBucketErr := indexBucket.Delete(indexBucketName)
+	delFromIndexBucketErr := indexBucket.Delete([]byte(IndexBucket))
 	if delFromIndexBucketErr != nil { return nil, delFromIndexBucketErr }
 
-	return &StateResponse{ Collection: payload.Collection, Value: "dropped" }, nil
+	return &StateResponse{ Collection: string(payload.Collection), Value: "dropped" }, nil
 }
 
-func (sm *State) searchInIndex(bucket *bolt.Bucket, payload *StateOperationPayload) (*StateResponse, error) {
-	index := bucket.Bucket([]byte(payload.Collection + IndexSuffix))
-	if index == nil { return &StateResponse{ Collection: payload.Collection }, nil }
+func (sm *State) searchInIndex(bucket *bolt.Bucket, payload *replication_proto.CommandPayload) (*StateResponse, error) {
+	index := bucket.Bucket(append(payload.Collection, []byte(IndexSuffix)...))
+	if index == nil { return &StateResponse{ Collection: string(payload.Collection) }, nil }
 
 	val := index.Get([]byte(payload.Value))
-	if val == nil { return &StateResponse{ Collection: payload.Collection }, nil }
-	return &StateResponse{ Collection: payload.Collection, Key: string(val), Value: payload.Value }, nil
+	if val == nil { return &StateResponse{ Collection: string(payload.Collection) }, nil }
+	return &StateResponse{ Collection: string(payload.Collection), Key: string(val), Value: string(payload.Value) }, nil
 }
 
-func (sm *State) insertIntoIndex(bucket *bolt.Bucket, payload *StateOperationPayload, colKey []byte) (*StateResponse, error) {
-	index := bucket.Bucket([]byte(payload.Collection + IndexSuffix))
-	if index == nil { return &StateResponse{ Collection: payload.Collection }, nil }
+func (sm *State) insertIntoIndex(bucket *bolt.Bucket, payload *replication_proto.CommandPayload, colKey []byte) (*StateResponse, error) {
+	index := bucket.Bucket(append(payload.Collection, []byte(IndexSuffix)...))
+	if index == nil { return &StateResponse{ Collection: string(payload.Collection) }, nil }
 
 	putErr := index.Put([]byte(payload.Value), colKey)
 	if putErr != nil { return nil, putErr }
-	return &StateResponse{ Collection: payload.Collection, Key: string(colKey), Value: payload.Value }, nil
+	return &StateResponse{ Collection: string(payload.Collection), Key: string(colKey), Value: string(payload.Value) }, nil
 }
 
-func (sm *State) deleteFromIndex(bucket *bolt.Bucket, payload *StateOperationPayload) (*StateResponse, error) {
-	index := bucket.Bucket([]byte(payload.Collection + IndexSuffix))
-	if index == nil { return &StateResponse{ Collection: payload.Collection }, nil }
+func (sm *State) deleteFromIndex(bucket *bolt.Bucket, payload *replication_proto.CommandPayload) (*StateResponse, error) {
+	index := bucket.Bucket(append(payload.Collection, []byte(IndexSuffix)...))
+	if index == nil { return &StateResponse{ Collection: string(payload.Collection) }, nil }
 
 	indexKey := []byte(payload.Value)
 	val := index.Get([]byte(payload.Value))
-	if val == nil { return &StateResponse{ Collection: payload.Collection }, nil }
+	if val == nil { return &StateResponse{ Collection: string(payload.Collection) }, nil }
 
 	delErr := index.Delete(indexKey)
 	if delErr != nil { return nil, delErr }
-	return &StateResponse{ Collection: payload.Collection, Key: string(val), Value: payload.Value }, nil
+	return &StateResponse{ Collection: string(payload.Collection), Key: string(val), Value: string(payload.Value) }, nil
 }
 
-func (sm *State) createCollection(bucket *bolt.Bucket, collection string) (bool, error) {
-	collectionName := []byte(collection)
-	collectionBucket := bucket.Bucket([]byte(collection))
+func (sm *State) createCollection(bucket *bolt.Bucket, collection []byte) (bool, error) {
+	collectionBucket := bucket.Bucket(collection)
 	
 	if collectionBucket == nil {
-		_, createErr := bucket.CreateBucketIfNotExists(collectionName)
+		_, createErr := bucket.CreateBucketIfNotExists(collection)
 		if createErr != nil { return false, createErr }
 	
 		indexName, createIndexErr := sm.createIndex(bucket, collection)
 		if createIndexErr != nil { return false, createIndexErr }
 	
 		collectionBucket := bucket.Bucket([]byte(CollectionBucket))
-		putCollectionErr := collectionBucket.Put(collectionName, collectionName)
+		putCollectionErr := collectionBucket.Put(collection, collection)
 		if putCollectionErr != nil { return false, putCollectionErr }
 	
 		indexBucket := bucket.Bucket([]byte(IndexBucket))
@@ -265,8 +263,8 @@ func (sm *State) createCollection(bucket *bolt.Bucket, collection string) (bool,
 	return true, nil 
 }
 
-func (sm *State) createIndex(bucket *bolt.Bucket, collection string) ([]byte, error) {
-	indexName := []byte(collection + IndexSuffix)
+func (sm *State) createIndex(bucket *bolt.Bucket, collection []byte) ([]byte, error) {
+	indexName := append(collection, []byte(IndexSuffix)...)
 	_, createErr := bucket.CreateBucketIfNotExists(indexName)
 	if createErr != nil { return nil, createErr }
 

@@ -8,10 +8,22 @@ service ReplicationService {
   rpc AppendEntryRPC(AppendEntry) returns (AppendEntryResponse) {}
 }
 
+
+message CommandPayload {
+  bytes Collection = 2;
+  bytes Value = 3;
+}
+
+message Command {
+  bytes RequestId = 1;
+  bytes Action = 2;
+  CommandPayload Payload = 3;
+}
+
 message LogEntry {
   int64 Index = 1;
   int64 Term = 2;
-  string Command = 3;
+  Command Command = 3;
 }
 
 message AppendEntry {

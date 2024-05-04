@@ -1,9 +1,6 @@
 package replication
 
-import (
-	"github.com/sirgallo/array"
-	"github.com/sirgallo/utils"
-	
+import (	
 	"github.com/sirgallo/rdbv2/internal/replication/replication_proto"
 	"github.com/sirgallo/rdbv2/internal/state"
 	"github.com/sirgallo/rdbv2/internal/system"
@@ -46,21 +43,9 @@ func (rService *ReplicationService) ApplyLogs() error {
 	}
 
 	lastLogToBeApplied := logsToBeApplied[len(logsToBeApplied) - 1]
-	transform := func(logEntry *replication_proto.LogEntry) *state.StateOperation {
-		var stateOp *state.StateOperation
-
-		stateOp, applyLogsErr = utils.DecodeStringToStruct[state.StateOperation](logEntry.Command)
-		if applyLogsErr != nil { return nil }
-		return stateOp
-	}
-
-	// NOTE: future update:
-	// 	to potentially increase throughput, make this a channel where as operations are transformed, they are being consumed by writer
-	//	bottleneck will then become disk speed
-	stateOperations := array.Map[*replication_proto.LogEntry, *state.StateOperation](logsToBeApplied, transform)
-
+	
 	var bulkApplyResps []*state.StateResponse
-	bulkApplyResps, applyLogsErr = rService.CurrentSystem.State.BulkWrite(stateOperations)
+	bulkApplyResps, applyLogsErr = rService.CurrentSystem.State.BulkWrite(logsToBeApplied)
 	if applyLogsErr != nil { return applyLogsErr }
 
 	if rService.CurrentSystem.SysState == system.Leader {

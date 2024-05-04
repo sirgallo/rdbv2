@@ -55,11 +55,11 @@ func (reqService *RequestService) StartRequestService() {
 	go func() {
 		for response := range reqService.ResponseChannel {
 			go func(response *state.StateResponse) {
-				c, ok := reqService.ClientMappedResponseChannels.Load(response.RequestID)
+				c, ok := reqService.ClientMappedResponseChannels.Load(response.RequestId)
 				if ok {
 					clientChannel := c.(chan *state.StateResponse)
 					clientChannel <- response
-				} else { reqService.Log.Warn(CLIENT_CHANNEL_ERROR, response.RequestID) }
+				} else { reqService.Log.Warn(CLIENT_CHANNEL_ERROR, response.RequestId) }
 			}(response)
 		}
 	}()

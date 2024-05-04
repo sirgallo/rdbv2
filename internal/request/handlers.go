@@ -68,7 +68,7 @@ func (reqService *RequestService) RegisterCommandRoute() {
 
 				clientResponseChannel := make(chan *state.StateResponse)
 				reqService.ClientMappedResponseChannels.Store(hash, clientResponseChannel)
-				requestData.RequestID = hash
+				requestData.RequestId = hash
 
 				reqService.RequestChannel <- requestData
 				responseData :=<- clientResponseChannel

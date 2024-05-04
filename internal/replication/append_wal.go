@@ -1,8 +1,6 @@
 package replication 
 
 import (
-	"github.com/sirgallo/utils"
-
 	"github.com/sirgallo/rdbv2/internal/replication/replication_proto"
 	"github.com/sirgallo/rdbv2/internal/state"
 )
@@ -22,15 +20,21 @@ func (rService *ReplicationService) AppendWALSync(cmd *state.StateOperation) err
 	lastLogIndex, _, appendErr = rService.CurrentSystem.DetermineLastLogIdxAndTerm()
 	if appendErr != nil { return appendErr }
 
-	var encodedCmd string
-	encodedCmd, appendErr = utils.EncodeStructToString[*state.StateOperation](cmd)
-	if appendErr != nil {
-		rService.Log.Error(ENCODE_ERROR, appendErr.Error())
-		return appendErr 
-	}
+	appendErr = rService.CurrentSystem.WAL.Append(
+		&replication_proto.LogEntry{ 
+			Index: lastLogIndex + 1,
+			Term: rService.CurrentSystem.CurrentTerm, 
+			Command: &replication_proto.Command{
+				RequestId: []byte(cmd.RequestId),
+				Action: []byte(cmd.Action),
+				Payload: &replication_proto.CommandPayload{
+					Collection: []byte(cmd.Payload.Collection),
+					Value: []byte(cmd.Payload.Value),
+				},
+			},
+		},
+	)
 
-	newLog := &replication_proto.LogEntry{ Index: lastLogIndex + 1, Term: rService.CurrentSystem.CurrentTerm, Command: encodedCmd }
-	appendErr = rService.CurrentSystem.WAL.Append(newLog)
 	if appendErr != nil {
 		rService.Log.Error(APPEND_WAL_ERROR, appendErr.Error())
 		return appendErr 

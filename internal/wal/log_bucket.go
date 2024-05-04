@@ -32,7 +32,7 @@ func (wal *WAL) Append(entry *replication_proto.LogEntry) error {
 		totalBytesAdded, totalKeysAdded, appendErr = wal.appendHelper(bucket, entry)
 		if appendErr != nil { return appendErr }
 
-		appendErr = wal.UpdateReplogStats(bucket, totalBytesAdded, totalKeysAdded, ADD)
+		appendErr = wal.UpdateReplicationStats(bucket, totalBytesAdded, totalKeysAdded, ADD)
 		if appendErr != nil { return appendErr }
 
 		_, appendErr = wal.setIndexForFirstLogInTerm(bucket, entry, latestIndexedLog)
@@ -81,7 +81,7 @@ func (wal *WAL) RangeAppend(logs []*replication_proto.LogEntry) error {
 			if newIndexedEntry != nil { latestIndexedLog = newIndexedEntry }
 		}
 
-		appendErr = wal.UpdateReplogStats(bucket, totalBytesAdded, totalKeysAdded, ADD)
+		appendErr = wal.UpdateReplicationStats(bucket, totalBytesAdded, totalKeysAdded, ADD)
 		if appendErr != nil { return appendErr }
 		return nil
 	}
@@ -274,7 +274,7 @@ func (wal *WAL) DeleteLogsUpToLastIncluded(endIndex int64) (int64, int64, error)
 	transaction := func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(ReplicatedLog))
 		
-		updateErr := wal.UpdateReplogStats(bucket, totalBytesRemoved, totalKeysRemoved, SUB)
+		updateErr := wal.UpdateReplicationStats(bucket, totalBytesRemoved, totalKeysRemoved, SUB)
 		if updateErr != nil { return updateErr }
 		return nil
 	}
@@ -313,7 +313,7 @@ func (wal *WAL) RangeDelete(startIndex, endIndex int64) (int64, int64, error) {
 	transaction := func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(ReplicatedLog))
 		
-		updateErr := wal.UpdateReplogStats(bucket, totalBytesRemoved, totalKeysRemoved, SUB)
+		updateErr := wal.UpdateReplicationStats(bucket, totalBytesRemoved, totalKeysRemoved, SUB)
 		if updateErr != nil { return updateErr }
 		return nil
 	}
@@ -376,7 +376,7 @@ func (wal *WAL) GetBucketSizeInBytes() (int64, error) {
 		helper function for updating both the indexes for total keys and total size of the replicated log
 */
 
-func (wal *WAL) UpdateReplogStats(bucket *bolt.Bucket, numUpdatedBytes int64, numUpdatedKeys int64, op StatOP) error {
+func (wal *WAL) UpdateReplicationStats(bucket *bolt.Bucket, numUpdatedBytes int64, numUpdatedKeys int64, op StatOP) error {
 	var bucketSize, totalKeys, newBucketSize, newTotal int64
 	var currStat []byte
 	var putErr error
