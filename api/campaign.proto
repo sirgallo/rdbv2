@@ -8,6 +8,7 @@ service CampaignService {
   rpc RequestVoteRPC(RequestVote) returns (RequestVoteResponse) {}
 }
 
+
 message RequestVote {
   int64 CurrentTerm = 1;
   string CandidateId = 2;

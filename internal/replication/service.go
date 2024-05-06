@@ -39,7 +39,7 @@ func NewReplicationService(opts *ReplicationOpts) *ReplicationService {
 	}
 }
 
-//	Start the replication module/service:
+//	StartReplicatedLogService module/service:
 //		launch the grc server for AppendEntryRPCbstart the log timeouts
 func (rService *ReplicationService) StartReplicatedLogService(listener *net.Listener) {
 	srv := grpc.NewServer()
@@ -60,7 +60,7 @@ func (rService *ReplicationService) StartReplicatedLogTimeout() {
 	go rService.FollowerGoRoutines()
 }
 
-// 	Leader Go Routines:
+//	LeaderGoRoutines:
 //		separate go routines:
 //			1.) heartbeat timeoutn and wait for timer to drain, signal heartbeat, and reset timer
 //			2.) replicate log timeout and wait for timer to drain, signal to replicate logs to followers, and reset timer
@@ -149,7 +149,7 @@ func (rService *ReplicationService) LeaderGoRoutines() {
 
 		for range replicateLogsChan {
 			if rService.CurrentSystem.SysState == system.Leader {
-				replicationErr = rService.ReplicateLogs()
+				replicationErr = rService.Replicate()
 				if replicationErr != nil { rService.Log.Error(REPLICATED_LOG_ERROR, replicationErr.Error()) }
 			}
 		}
@@ -158,14 +158,14 @@ func (rService *ReplicationService) LeaderGoRoutines() {
 	go func() {
 		for host := range rService.SyncLogChannel {
 			go func(host string) {
-				_, syncErr := rService.SyncLogs(host)
+				_, syncErr := rService.Sync(host)
 				if syncErr != nil { rService.Log.Error(SYNC_ERROR, host, ":", syncErr.Error()) }
 			}(host)
 		}
 	}()
 }
 
-// 	Follower Go Routines:
+// 	FollowerGoRoutines:
 //		separate go routines:
 //			1.) process logs as logs are received from AppendEntryRPCs from the leader, process the logs synchronously and signal to the request when complete
 //			2.) apply logs to state machine when signalled by a request, and available, apply logs to the state machine up to the request commit index

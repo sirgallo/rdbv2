@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package log_proto;
+package replication_proto;
 option go_package = "./internal/replication/replication_proto";
 
 

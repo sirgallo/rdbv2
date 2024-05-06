@@ -18,13 +18,13 @@ The Raft Service is separated into modules, all of which are meant to be able to
 
 To learn more about each, check out:
 
-[Campaign](./docs/Campaign.md) 
+[Campaign](./docs/modules/Campaign.md) 
 
-[Replication](./docs/Replication.md)
+[Replication](./docs/modules/Replication.md)
 
-[Snapshot](./docs/Snapshot.md)
+[Snapshot](./docs/modules/Snapshot.md)
 
-[Request](./docs/Request.md)
+[Request](./docs/modules/Request.md)
 
 
 The protocol buffer schemas are as follows:
@@ -37,9 +37,9 @@ All protocol buffer schemas can be found under [api](./api).
 
 For more information regarding the replicated log and state machine, check out:
 
-[WAL](./docs/WAL.md)
+[WAL](./docs/state/WAL.md)
 
-[State](./docs/State.md)
+[State](./docs/state/State.md)
 
 
 ## deployment

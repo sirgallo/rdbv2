@@ -8,6 +8,7 @@ service SnapshotService {
   rpc StreamSnapshotRPC(stream SnapshotChunk) returns (SnapshotStreamResponse);
 }
 
+
 message SnapshotChunk {
   int64 LastIncludedIndex = 1;
   int64 LastIncludedTerm = 2;

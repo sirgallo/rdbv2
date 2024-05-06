@@ -19,7 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	ReplicationService_AppendEntryRPC_FullMethodName = "/log_proto.ReplicationService/AppendEntryRPC"
+	ReplicationService_AppendEntryRPC_FullMethodName = "/replication_proto.ReplicationService/AppendEntryRPC"
 )
 
 // ReplicationServiceClient is the client API for ReplicationService service.
@@ -96,7 +96,7 @@ func _ReplicationService_AppendEntryRPC_Handler(srv interface{}, ctx context.Con
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var ReplicationService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "log_proto.ReplicationService",
+	ServiceName: "replication_proto.ReplicationService",
 	HandlerType: (*ReplicationServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
